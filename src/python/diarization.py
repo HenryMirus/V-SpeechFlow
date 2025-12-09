@@ -1,24 +1,19 @@
 """
 Speaker Diarization Module für V-SpeechFlow
 
-Nutzt pyannote.audio für Speaker-Segmentierung.
+Nutzt pyannote.audio 4.0+ für Speaker-Segmentierung.
 Erfordert Hugging Face Token für Modell-Download.
+
+Kompatibilität:
+- pyannote.audio 4.0+ (nutzt torchcodec statt deprecated torchaudio APIs)
+- Python 3.10+
+- torchaudio 2.8+
 """
 
 import sys
 from pathlib import Path
 from typing import List, Tuple, Optional
 import warnings
-
-# Workaround für torchaudio 2.9+ Kompatibilität mit pyannote.audio 3.1.1
-# pyannote.audio 3.1.1 verwendet veraltetes set_audio_backend API
-try:
-    import torchaudio
-    if not hasattr(torchaudio, 'set_audio_backend'):
-        # Mock für neuere torchaudio Versionen
-        torchaudio.set_audio_backend = lambda x: None
-except ImportError:
-    pass
 
 # pyannote.audio ist optional
 try:
@@ -97,7 +92,7 @@ class SpeakerDiarizer:
             
             self.pipeline = Pipeline.from_pretrained(
                 "pyannote/speaker-diarization-3.1",
-                use_auth_token=self.hf_token
+                token=self.hf_token
             )
             
             # Optimierte Parameter für deutsche Sprache
