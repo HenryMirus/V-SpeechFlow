@@ -1,0 +1,59 @@
+# Build artifacts
+build/
+cmake-build-*/
+*.o
+*.a
+*.dylib
+*.so
+
+# C++ binaries
+bin/
+stt_native
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+.venv/
+venv/
+env/
+
+# Audio files (temporary)
+*.wav
+*.mp3
+*.m4a
+*.flac
+test_data/
+
+# Transcripts
+transcript*.txt
+output*.txt
+*.srt
+
+# Models
+models/*.bin
+!models/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+.github/copilot-instructions.md
+
+# Logs
+*.log
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Temporary files
+tmp*
+*.tmp
+.~*

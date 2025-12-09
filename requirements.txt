@@ -1,0 +1,13 @@
+# V-SpeechFlow Python Dependencies
+
+# Core - Live Recording
+pyaudio>=0.2.13          # Mikrofonzugriff (macOS kompatibel)
+numpy>=1.24.0            # Audio-Verarbeitung
+
+# Optional - Speaker Diarization
+# Install with: pip install -r requirements.txt
+# Note: Requires Hugging Face token (export HF_TOKEN=hf_...)
+
+pyannote.audio==3.1.1    # Locked to 3.1.1 for Python 3.14 compatibility
+torch>=2.0.0
+torchaudio>=2.0.0
