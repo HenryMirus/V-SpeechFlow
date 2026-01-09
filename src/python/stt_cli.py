@@ -196,10 +196,14 @@ class STTClient:
 
 def format_timestamp(seconds: float) -> str:
     """Formatiert Sekunden als HH:MM:SS.mmm"""
-    hours = int(seconds // 3600)
-    minutes = int((seconds % 3600) // 60)
-    secs = int(seconds % 60)
-    millis = int((seconds % 1) * 1000)
+    total_ms = int(round(seconds * 1000.0))
+    if total_ms < 0:
+        total_ms = 0
+
+    hours = total_ms // 3_600_000
+    minutes = (total_ms % 3_600_000) // 60_000
+    secs = (total_ms % 60_000) // 1000
+    millis = total_ms % 1000
     return f"{hours:02d}:{minutes:02d}:{secs:02d}.{millis:03d}"
 
 
@@ -502,7 +506,7 @@ Beispiele:
                 temp_wav = Path(temp_file.name)
                 temp_file.close()
             
-            cleanup_temp = True
+            cleanup_temp = not args.keep_temp
 
             converter = AudioConverter()
             if not converter.convert_to_wav(args.file, temp_wav):
