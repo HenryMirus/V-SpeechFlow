@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [ develop, main ]
+  pull_request:
+    branches: [ develop, main ]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python-tests:
+    name: Python tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.11"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+
+  native-build-macos:
+    name: Build native binary (macos-14)
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Compute cache keys
+        id: cache-keys
+        shell: bash
+        run: |
+          echo "whisper_sha=$(git -C third_party/whisper.cpp rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Homebrew downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/Homebrew
+            /Users/runner/Library/Caches/Homebrew
+          key: brew-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
+
+      - name: Cache CMake build directory
+        uses: actions/cache@v4
+        with:
+          path: build
+          key: cmake-${{ runner.os }}-${{ runner.arch }}-${{ steps.cache-keys.outputs.whisper_sha }}-${{ hashFiles('CMakeLists.txt', 'src/native/**', 'src/python/**', 'build.sh') }}
+          restore-keys: |
+            cmake-${{ runner.os }}-${{ runner.arch }}-${{ steps.cache-keys.outputs.whisper_sha }}-
+            cmake-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Install dependencies (Homebrew)
+        run: |
+          brew update
+          brew install cmake ffmpeg
+
+      - name: Build
+        run: ./build.sh
+
+      - name: Smoke test native binary
+        run: ./build/bin/stt_native --help
+
+      - name: Run unit tests
+        run: python3 -m unittest discover -s tests -v
