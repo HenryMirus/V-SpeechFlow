@@ -41,25 +41,16 @@ class TestCliArgs(unittest.TestCase):
 
     def test_list_devices_does_not_require_model_or_input(self) -> None:
         argv = ["prog", "--list-devices"]
-        # On CI, PyAudio is typically not installed, so stt_cli may not define LiveRecorder.
-        # In that case, the correct behavior is to exit with code 1 and a helpful message.
-        if hasattr(stt_cli, "LiveRecorder"):
-            with (
-                mock.patch.object(sys, "argv", argv),
-                mock.patch.object(stt_cli, "LIVE_RECORDING_AVAILABLE", True),
-                mock.patch.object(stt_cli, "LiveRecorder", _DummyRecorder),
-            ):
-                with self.assertRaises(SystemExit) as cm:
-                    stt_cli.main()
-            self.assertEqual(cm.exception.code, 0)
-        else:
-            with (
-                mock.patch.object(sys, "argv", argv),
-                mock.patch.object(stt_cli, "LIVE_RECORDING_AVAILABLE", False),
-            ):
-                with self.assertRaises(SystemExit) as cm:
-                    stt_cli.main()
-            self.assertEqual(cm.exception.code, 1)
+        # We only want to assert argument requirements here, not whether PyAudio/numpy
+        # are installed on the system. Patch LiveRecorder even if it doesn't exist.
+        with (
+            mock.patch.object(sys, "argv", argv),
+            mock.patch.object(stt_cli, "LIVE_RECORDING_AVAILABLE", True),
+            mock.patch.object(stt_cli, "LiveRecorder", _DummyRecorder, create=True),
+        ):
+            with self.assertRaises(SystemExit) as cm:
+                stt_cli.main()
+        self.assertEqual(cm.exception.code, 0)
 
 
 if __name__ == "__main__":
