@@ -1,6 +1,13 @@
 import os
+import sys
 import unittest
 from unittest import mock
+from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+PY_SRC = REPO_ROOT / "src" / "python"
+sys.path.insert(0, str(PY_SRC))
 
 
 class TestHFToken(unittest.TestCase):
