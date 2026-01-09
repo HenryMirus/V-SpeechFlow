@@ -166,6 +166,7 @@ class TestTempAndOutput(unittest.TestCase):
 
             with (
                 mock.patch.object(sys, "argv", argv),
+                mock.patch.object(stt_cli.AudioConverter, "is_ffmpeg_available", return_value=True),
                 mock.patch.object(stt_cli.STTClient, "transcribe", new=_stub_transcribe_factory("TRANSCRIPT")),
                 contextlib.redirect_stdout(io.StringIO()),
                 contextlib.redirect_stderr(io.StringIO()),
