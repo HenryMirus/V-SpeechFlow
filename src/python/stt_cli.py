@@ -15,6 +15,8 @@ import tempfile
 from pathlib import Path
 from typing import Optional, List, Tuple
 
+import hf_token as hf_token_container
+
 # Füge src/python zum Pfad hinzu für Modul-Imports
 _script_dir = Path(__file__).parent.resolve()
 if str(_script_dir) not in sys.path:
@@ -528,17 +530,19 @@ Beispiele:
         
         print("=== Speaker Diarization ===\n")
         
-        # HF Token aus env oder argument
-        hf_token = args.hf_token or os.environ.get("HF_TOKEN")
-        if not hf_token:
+        # HF Token aus CLI/env/Keychain (cached)
+        hf_token_value = hf_token_container.get_hf_token(args.hf_token)
+        if not hf_token_value:
             print("Error: Hugging Face token required for diarization", file=sys.stderr)
             print("Set via: export HF_TOKEN='your_token'", file=sys.stderr)
             print("Or use: --hf-token argument", file=sys.stderr)
+            print("Or store in Keychain service: HF_V-Speechflow", file=sys.stderr)
+            print("  export HF_TOKEN=\"$(security find-generic-password -s HF_V-Speechflow -w)\"", file=sys.stderr)
             print("\nRun --diarization-help for setup instructions", file=sys.stderr)
             sys.exit(4)
         
         # Diarizer initialisieren
-        diarizer = SpeakerDiarizer(hf_token=hf_token, optimize_for_german=True)
+        diarizer = SpeakerDiarizer(hf_token=hf_token_value, optimize_for_german=True)
         if not diarizer.initialize():
             sys.exit(4)
         

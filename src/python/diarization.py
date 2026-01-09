@@ -15,6 +15,8 @@ from pathlib import Path
 from typing import List, Tuple, Optional
 import warnings
 
+import hf_token as hf_token_container
+
 # pyannote.audio ist optional
 try:
     from pyannote.audio import Pipeline
@@ -67,7 +69,8 @@ class SpeakerDiarizer:
                 "  pip install pyannote.audio torch torchaudio"
             )
         
-        self.hf_token = hf_token
+        # Resolve token from CLI/env/Keychain (cached) if not explicitly provided
+        self.hf_token = hf_token_container.get_hf_token(hf_token)
         self.pipeline = None
         self.optimize_for_german = optimize_for_german
         
@@ -122,8 +125,11 @@ class SpeakerDiarizer:
             print(f"Error loading diarization model: {e}", file=sys.stderr)
             print("\nMake sure you have:", file=sys.stderr)
             print("1. Accepted the model terms at: https://huggingface.co/pyannote/speaker-diarization-3.1", file=sys.stderr)
-            print("2. Set your HF token: export HF_TOKEN='your_token'", file=sys.stderr)
-            print("   or pass it via --hf-token argument", file=sys.stderr)
+            print("2. Provide your HF token:", file=sys.stderr)
+            print("   export HF_TOKEN='your_token'", file=sys.stderr)
+            print("   # or store in Keychain service: HF_V-Speechflow", file=sys.stderr)
+            print("   export HF_TOKEN=\"$(security find-generic-password -s HF_V-Speechflow -w)\"", file=sys.stderr)
+            print("   # or pass it via --hf-token argument", file=sys.stderr)
             return False
     
     def diarize(self, audio_file: Path, num_speakers: Optional[int] = None,
@@ -313,5 +319,7 @@ def print_diarization_help():
     print()
     print("4. Set token:")
     print("   export HF_TOKEN='your_token_here'")
+    print("   # recommended (macOS Keychain service: HF_V-Speechflow):")
+    print("   export HF_TOKEN=\"$(security find-generic-password -s HF_V-Speechflow -w)\"")
     print("   # or pass via --hf-token argument")
     print()

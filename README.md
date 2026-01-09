@@ -103,7 +103,9 @@ cd ..
 pip install -r requirements.txt
 
 # Hugging Face Token setzen (benötigt für Diarization)
-export HF_TOKEN=hf-1231245123123
+# Empfohlen (macOS Keychain): Token sicher speichern und bei Bedarf laden
+# (Service-Name: HF_V-Speechflow)
+export HF_TOKEN="$(security find-generic-password -s HF_V-Speechflow -w)"
 ```
 
 **Hinweis zu PyAudio (Live-Recording):**
@@ -189,8 +191,7 @@ python3 src/python/stt_cli.py \
 python3 src/python/stt_cli.py \
   -i meeting.m4a \
   -m models/ggml-small.bin \
-  --diarize \
-  --hf-token $HF_TOKEN
+  --diarize
 ```
 
 **Wichtige Optionen:**
@@ -220,6 +221,90 @@ Weitere:
 -l, --language CODE       Sprach-Code [default: de]
 --translate               Ins Englische übersetzen
 --keep-temp               Temporäre WAV-Datei behalten
+```
+
+## Beispiele (Command Cookbook)
+
+### 1) Schnell: Datei → deutsches Transkript
+
+```bash
+python3 src/python/stt_cli.py \
+  -i audio.mp3 \
+  -m models/ggml-medium.bin
+```
+
+### 2) Datei → Transkript mit Timestamps (Segmente)
+
+```bash
+python3 src/python/stt_cli.py \
+  -i meeting.m4a \
+  -m models/ggml-medium.bin \
+  -s \
+  -o transcript_segments.txt
+```
+
+### 3) Live vom Mikrofon (Built-in) → Transkript
+
+```bash
+# Geräte anzeigen
+python3 src/python/stt_cli.py --list-devices
+
+# Aufnahme starten (Beispiel: Device 3 = MacBook Pro Microphone)
+# Stoppen mit Ctrl+C → danach startet automatisch die Transkription
+python3 src/python/stt_cli.py \
+  --live \
+  --device 3 \
+  -m models/ggml-medium.bin
+```
+
+### 4) Live + Speaker Diarization mit Speaker-Cap (empfohlen für Meetings)
+
+Wenn du weißt, dass z.B. bis zu 13 Personen teilnehmen, aber nicht alle sprechen,
+ist ein Cap sinnvoll (nicht "erzwingen" mit `--num-speakers 13`).
+
+```bash
+python3 src/python/stt_cli.py \
+  --live \
+  --device 3 \
+  -m models/ggml-medium.bin \
+  --diarize \
+  --min-speakers 1 \
+  --max-speakers 13 \
+  -o transcript_with_speakers.txt
+```
+
+### 5) Speaker Diarization: Exakt bekannte Anzahl (z.B. Interview)
+
+```bash
+python3 src/python/stt_cli.py \
+  -i interview.mp3 \
+  -m models/ggml-medium.bin \
+  --diarize \
+  --num-speakers 2 \
+  -o transcript_interview.txt
+```
+
+### 6) Speaker Diarization: Token aus macOS Keychain verwenden (HF_V-Speechflow)
+
+```bash
+export HF_TOKEN="$(security find-generic-password -s HF_V-Speechflow -w)"
+
+python3 src/python/stt_cli.py \
+  -i meeting.m4a \
+  -m models/ggml-medium.bin \
+  --diarize \
+  --min-speakers 1 \
+  --max-speakers 13
+```
+
+### 7) Übersetzen (Deutsch → Englisch)
+
+```bash
+python3 src/python/stt_cli.py \
+  -i audio.mp3 \
+  -m models/ggml-medium.bin \
+  --translate \
+  -o transcript_en.txt
 ```
 
 
@@ -416,6 +501,9 @@ python3 src/python/stt_cli.py --diarization-help
 ```bash
 # Token setzen
 export HF_TOKEN=hf_your_token_here
+
+# Alternativ (macOS Keychain service: HF_V-Speechflow)
+export HF_TOKEN="$(security find-generic-password -s HF_V-Speechflow -w)"
 
 # Oder direkt beim Aufruf
 python3 src/python/stt_cli.py -i audio.mp3 --diarize --hf-token hf_xxx
