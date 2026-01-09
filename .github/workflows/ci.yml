@@ -44,6 +44,29 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Compute cache keys
+        id: cache-keys
+        shell: bash
+        run: |
+          echo "whisper_sha=$(git -C third_party/whisper.cpp rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Homebrew downloads
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/Homebrew
+            /Users/runner/Library/Caches/Homebrew
+          key: brew-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
+
+      - name: Cache CMake build directory
+        uses: actions/cache@v4
+        with:
+          path: build
+          key: cmake-${{ runner.os }}-${{ runner.arch }}-${{ steps.cache-keys.outputs.whisper_sha }}-${{ hashFiles('CMakeLists.txt', 'src/native/**', 'src/python/**', 'build.sh') }}
+          restore-keys: |
+            cmake-${{ runner.os }}-${{ runner.arch }}-${{ steps.cache-keys.outputs.whisper_sha }}-
+            cmake-${{ runner.os }}-${{ runner.arch }}-
+
       - name: Install dependencies (Homebrew)
         run: |
           brew update
