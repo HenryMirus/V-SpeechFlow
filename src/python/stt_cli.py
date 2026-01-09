@@ -1,4 +1,4 @@
-#!/Users/leongarcia-egge/Documents/repos/V-SpeechFlow/.venv/bin/python
+#!/usr/bin/env python3
 """
 V-SpeechFlow CLI - Komfortables Speech-to-Text Tool
 
