@@ -21,3 +21,6 @@ numpy>=2.0.0     # Required by pyannote.audio 4.0+
 
 # Optional utilities
 rich>=10.0.0     # Terminal formatting
+
+# GUI dependencies
+PyQt6>=6.5.0     # GUI framework

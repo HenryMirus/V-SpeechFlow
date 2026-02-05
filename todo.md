@@ -4,31 +4,37 @@
 
 ### 1. **Kern-UI & Projekt-Setup**
 - [x] Framework auswählen (React/Electron, PyQt, Flutter, etc.) → **PyQt6 gewählt**
-- [x] Grundlegende Fenster-Struktur → `src/python/gui/main_window.py` erstellt
-- [x] Verbindung zur CLI etablieren (subprocess-Handling) → `src/python/gui/workers.py` mit CLIWorker
+- [x] Grundlegende Fenster-Struktur → `src/gui/main_window.py` erstellt
+- [x] Verbindung zur CLI etablieren (subprocess-Handling) → `src/gui/workers.py` mit CLIWorker
+
+### **macOS-Kompatibilität** (Verbesserungen)
+- [x] Drop-Feedback (visuelles Highlighting beim Hovern) → Green/Red Border in input_panel
+- [x] Keychain-Integration für HF-TOKEN → `macos_utils.py` mit `get_hf_token_from_keychain()`
+- [x] Better Error-Handling bei Permission-Denied → MessageBox-Popups mit Anleitung
+- [x] HF-Token Input im Live-Tab → Mit "Aus Keychain laden"-Button
 
 ### 2. **Input-Management** 
-- [ ] Datei-Auswahl-Dialog
-- [ ] Drag & Drop für Audio-Dateien
-- [ ] Audio-Format-Support anzeigen (mp3, m4a, wav, etc.)
-- [ ] Live-Aufnahme-Modus (--live starten)
-- [ ] Mikrofon-Auswahl mit Device-Picker
-- [ ] Mikrofon-Liste auslesen (--list-devices)
-- [ ] Volume-Anzeige während Live-Recording
-- [ ] Recording-Steuerung (Start/Stop/Pause)
+- [x] Datei-Auswahl-Dialog → `input_panel.py` File-Tab
+- [x] Drag & Drop für Audio-Dateien → `dragEnterEvent` & `dropEvent` implementiert
+- [x] Audio-Format-Support anzeigen (mp3, m4a, wav, etc.) → Anzeige in UI
+- [x] Live-Aufnahme-Modus (--live starten) → Live-Tab mit Recording-Controls
+- [x] Mikrofon-Auswahl mit Device-Picker → ComboBox mit `refresh_devices()`
+- [x] Mikrofon-Liste auslesen (--list-devices) → `utils.list_audio_devices()` erstellt
+- [ ] Volume-Anzeige während Live-Recording → QProgressBar vorbereitet, benötigt Audio-Thread-Integration
+- [ ] Recording-Steuerung (Start/Stop/Pause) → Buttons erstellt, benötigt Live-Recorder-Integration
 
 ### 3. **Modell-Management**
-- [ ] Modell-Pfad wählen
-- [ ] Modell-Vorschläge (ggml-base, ggml-small, ggml-medium, ggml-large-v3)
-- [ ] Modell-Download-Link anzeigen (Größe: 150MB–3GB)
-- [ ] Modell-Validierung (existiert, korrekte Größe?)
+- [x] Modell-Pfad wählen → `model_panel.py` mit File-Dialog
+- [x] Modell-Vorschläge (ggml-base, ggml-small, ggml-medium, ggml-large-v3) → ComboBox mit Vorschlägen
+- [x] Modell-Download-Link anzeigen (Größe: 150MB–3GB) → Info-Box mit HuggingFace Links
+- [x] Modell-Validierung (existiert, korrekte Größe?) → `model_utils.validate_model_file()`
 
 ### 4. **Verarbeitung-Optionen**
-- [ ] Thread-Anzahl konfigurieren (Slider/Input)
-- [ ] Empfehlungen je nach Mac-Modell (M1/M2/M3 + Kerne)
-- [ ] Sprache wählen (-l, default: de)
-- [ ] Ins Englische übersetzen (--translate Checkbox)
-- [ ] Temp-Dateien behalten (--keep-temp)
+- [x] Thread-Anzahl konfigurieren (Slider/Input) → `settings_panel.py` mit Slider + SpinBox
+- [x] Empfehlungen je nach Mac-Modell (M1/M2/M3 + Kerne) → `system_utils.py` erkennt CPU + gibt Empfehlung
+- [x] Sprache wählen (-l, default: de) → ComboBox mit de/en/fr/es/auto
+- [x] Ins Englische übersetzen (--translate Checkbox) → CheckBox mit Flag
+- [x] Temp-Dateien behalten (--keep-temp) → CheckBox
 
 ### 5. **Speaker Diarization**
 - [ ] Diarization aktivieren/deaktivieren (Checkbox)

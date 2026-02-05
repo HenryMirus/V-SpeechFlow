@@ -1,0 +1,173 @@
+"""
+Settings Panel für Verarbeitungs-Optionen
+
+Thread-Konfiguration, Sprache, Übersetzung, etc.
+"""
+
+from PyQt6.QtWidgets import (
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QSlider,
+    QSpinBox,
+    QCheckBox,
+    QComboBox,
+    QGroupBox,
+)
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QFont
+from .system_utils import get_system_info, get_recommended_threads
+
+
+class SettingsPanel(QWidget):
+    """Panel für Verarbeitungs-Einstellungen."""
+    
+    # Signals
+    settings_changed = pyqtSignal(dict)  # Emitted wenn sich Setting ändert
+    
+    def __init__(self):
+        super().__init__()
+        self.system_info = get_system_info()
+        self.init_ui()
+    
+    def init_ui(self):
+        """Initialisiert die UI."""
+        layout = QVBoxLayout(self)
+        
+        # Titel
+        title = QLabel("⚙️ Verarbeitungs-Optionen")
+        title_font = QFont()
+        title_font.setPointSize(12)
+        title_font.setBold(True)
+        title.setFont(title_font)
+        layout.addWidget(title)
+        
+        # ===== Thread Configuration =====
+        thread_group = QGroupBox("🔧 Thread-Konfiguration")
+        thread_layout = QVBoxLayout()
+        
+        # CPU Info
+        cpu_brand = self.system_info.get('cpu_brand', 'N/A')
+        cpu_count = self.system_info.get('cpu_count', 4)
+        recommended = self.system_info.get('recommended_threads', 6)
+        
+        cpu_info_text = f"💻 System: {cpu_brand} ({cpu_count} Kerne) | Empfohlen: {recommended} Threads"
+        cpu_info = QLabel(cpu_info_text)
+        cpu_info.setStyleSheet("color: gray; font-size: 10px;")
+        thread_layout.addWidget(cpu_info)
+        
+        # Thread Slider + Spinner
+        slider_layout = QHBoxLayout()
+        slider_layout.addWidget(QLabel("Threads:"))
+        
+        self.thread_slider = QSlider(Qt.Orientation.Horizontal)
+        self.thread_slider.setMinimum(1)
+        self.thread_slider.setMaximum(16)
+        self.thread_slider.setValue(recommended)
+        self.thread_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
+        self.thread_slider.setTickInterval(1)
+        slider_layout.addWidget(self.thread_slider)
+        
+        self.thread_spinbox = QSpinBox()
+        self.thread_spinbox.setMinimum(1)
+        self.thread_spinbox.setMaximum(16)
+        self.thread_spinbox.setValue(recommended)
+        slider_layout.addWidget(self.thread_spinbox)
+        
+        # Slider & Spinbox verbinden
+        self.thread_slider.valueChanged.connect(self.thread_spinbox.setValue)
+        self.thread_spinbox.valueChanged.connect(self.thread_slider.setValue)
+        
+        self.thread_slider.valueChanged.connect(self.emit_settings_changed)
+        
+        thread_layout.addLayout(slider_layout)
+        
+        hint = QLabel("💡 Höhere Werte = mehr CPU-Last, aber schneller (M1: 6-8, M3 Pro: 8-10)")
+        hint.setStyleSheet("color: gray; font-size: 9px;")
+        hint.setWordWrap(True)
+        thread_layout.addWidget(hint)
+        
+        thread_group.setLayout(thread_layout)
+        layout.addWidget(thread_group)
+        
+        # ===== Language & Translation =====
+        lang_group = QGroupBox("🌍 Sprache & Übersetzung")
+        lang_layout = QVBoxLayout()
+        
+        # Language Selection
+        lang_layout.addWidget(QLabel("Eingabe-Sprache:"))
+        
+        lang_combo_layout = QHBoxLayout()
+        self.language_combo = QComboBox()
+        self.language_combo.addItem("🇩🇪 Deutsch", "de")
+        self.language_combo.addItem("🇬🇧 English", "en")
+        self.language_combo.addItem("🇫🇷 Français", "fr")
+        self.language_combo.addItem("🇪🇸 Español", "es")
+        self.language_combo.addItem("Auto Detect", "auto")
+        self.language_combo.setCurrentIndex(0)  # Deutsch default
+        self.language_combo.currentIndexChanged.connect(self.emit_settings_changed)
+        lang_combo_layout.addWidget(self.language_combo)
+        lang_combo_layout.addStretch()
+        
+        lang_layout.addLayout(lang_combo_layout)
+        
+        # Translation Checkbox
+        self.translate_checkbox = QCheckBox("Ins Englische übersetzen (--translate)")
+        self.translate_checkbox.setChecked(False)
+        self.translate_checkbox.stateChanged.connect(self.emit_settings_changed)
+        lang_layout.addWidget(self.translate_checkbox)
+        
+        lang_group.setLayout(lang_layout)
+        layout.addWidget(lang_group)
+        
+        # ===== Output Options =====
+        output_group = QGroupBox("📁 Output-Optionen")
+        output_layout = QVBoxLayout()
+        
+        # Keep Temp
+        self.keep_temp_checkbox = QCheckBox("Temporäre WAV-Datei behalten (--keep-temp)")
+        self.keep_temp_checkbox.setChecked(False)
+        self.keep_temp_checkbox.stateChanged.connect(self.emit_settings_changed)
+        output_layout.addWidget(self.keep_temp_checkbox)
+        
+        hint2 = QLabel("💡 Nützlich fürs Debugging oder wenn du die Original-WAV speichern möchtest")
+        hint2.setStyleSheet("color: gray; font-size: 9px;")
+        hint2.setWordWrap(True)
+        output_layout.addWidget(hint2)
+        
+        output_group.setLayout(output_layout)
+        layout.addWidget(output_group)
+        
+        layout.addStretch()
+        self.setLayout(layout)
+    
+    def emit_settings_changed(self):
+        """Emittiert Signal mit aktuellen Settings."""
+        settings = self.get_settings()
+        self.settings_changed.emit(settings)
+    
+    def get_settings(self) -> dict:
+        """Gibt alle aktuellen Einstellungen zurück."""
+        return {
+            'threads': self.thread_spinbox.value(),
+            'language': self.language_combo.currentData(),
+            'translate': self.translate_checkbox.isChecked(),
+            'keep_temp': self.keep_temp_checkbox.isChecked(),
+        }
+    
+    def set_settings(self, settings: dict):
+        """Setzt Einstellungen (z.B. aus gespeicherten Profilen)."""
+        if 'threads' in settings:
+            self.thread_spinbox.setValue(settings['threads'])
+        
+        if 'language' in settings:
+            index = self.language_combo.findData(settings['language'])
+            if index >= 0:
+                self.language_combo.setCurrentIndex(index)
+        
+        if 'translate' in settings:
+            self.translate_checkbox.setChecked(settings['translate'])
+        
+        if 'keep_temp' in settings:
+            self.keep_temp_checkbox.setChecked(settings['keep_temp'])
