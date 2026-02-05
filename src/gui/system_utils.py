@@ -28,7 +28,7 @@ def get_mac_model() -> Optional[str]:
         )
         if result.returncode == 0:
             return result.stdout.strip()
-    except:
+    except Exception:
         pass
     
     return None
@@ -63,7 +63,7 @@ def get_cpu_brand() -> Optional[str]:
                 return "Apple"
             elif "Intel" in brand_str:
                 return "Intel"
-    except:
+    except Exception:
         pass
     
     # Fallback
@@ -79,7 +79,7 @@ def get_cpu_brand() -> Optional[str]:
             return "Apple"
         elif "x86" in result.stdout.lower():
             return "Intel"
-    except:
+    except Exception:
         pass
     
     return None

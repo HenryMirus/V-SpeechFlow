@@ -77,7 +77,7 @@ def validate_model_file(model_path: str) -> Dict:
             return result
         
         if size_bytes > 4 * 1024 * 1024 * 1024:
-            result['error'] = f"Datei zu groß ({size_mb:.1f}MB). Zu large für diesen Code-Pfad?"
+            result['error'] = f"Datei zu groß ({size_mb:.1f}MB). Ist das ein gültiges Whisper-Modell?"
             return result
         
         result['exists'] = True

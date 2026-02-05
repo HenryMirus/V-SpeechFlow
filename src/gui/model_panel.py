@@ -5,6 +5,7 @@ Ermöglicht Auswahl, Validierung und Download von Modellen.
 """
 
 from pathlib import Path
+from typing import Optional
 from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -20,12 +21,10 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QDesktopServices, QFont
-from PyQt6.QtCore import QUrl
 from .model_utils import (
     AVAILABLE_MODELS,
     validate_model_file,
     get_model_info,
-    format_size_mb,
 )
 
 
@@ -206,6 +205,6 @@ class ModelPanel(QWidget):
             f"{info['description']}"
         )
     
-    def get_selected_model(self) -> str:
+    def get_selected_model(self) -> Optional[str]:
         """Gibt den Pfad zum ausgewählten Modell zurück."""
         return self.selected_model

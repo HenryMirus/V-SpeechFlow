@@ -5,6 +5,7 @@ Ermöglicht Auswahl von Audio-Dateien oder Live-Recording vom Mikrofon.
 """
 
 from pathlib import Path
+from typing import Optional
 from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -18,8 +19,8 @@ from PyQt6.QtWidgets import (
     QLineEdit,
     QMessageBox,
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QMimeData
-from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QIcon
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QDragLeaveEvent, QIcon
 from .utils import list_audio_devices
 from .macos_utils import get_hf_token_from_keychain, is_mac
 
@@ -334,7 +335,7 @@ class InputPanel(QWidget):
         )
         event.ignore()
     
-    def dragLeaveEvent(self, event):
+    def dragLeaveEvent(self, event: QDragLeaveEvent):
         """Entfernt visuelles Feedback wenn Drag verlässt."""
         self.file_path_display.setStyleSheet("")
         event.accept()
@@ -348,8 +349,9 @@ class InputPanel(QWidget):
             if urls:
                 file_path = urls[0].toLocalFile()
                 self.set_file_path(file_path)
+                event.acceptProposedAction()
     
-    def get_selected_file(self) -> str:
+    def get_selected_file(self) -> Optional[str]:
         """Gibt den Pfad zur ausgewählten Datei zurück."""
         return self.selected_file
     

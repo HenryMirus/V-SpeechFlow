@@ -36,6 +36,12 @@ class CLIWorker(QThread):
             project_root = Path(__file__).parent.parent
             cli_script = project_root / "python" / "stt_cli.py"
             
+            # Prüfen ob CLI-Script existiert
+            if not cli_script.exists():
+                self.error_received.emit(f"CLI-Script nicht gefunden: {cli_script}")
+                self.process_finished.emit(1)
+                return
+            
             # Kommando zusammenstellen
             cmd = [sys.executable, str(cli_script)] + self.arguments
             
@@ -71,5 +77,10 @@ class CLIWorker(QThread):
     def stop(self):
         """Beendet den laufenden Prozess."""
         if self.process:
-            self.process.terminate()
-            self.process.wait(timeout=5)
+            try:
+                self.process.terminate()
+                self.process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                # Falls Prozess nicht terminiert, erzwinge Kill
+                self.process.kill()
+                self.process.wait()

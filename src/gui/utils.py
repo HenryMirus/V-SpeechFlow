@@ -88,5 +88,5 @@ def get_default_device() -> Optional[int]:
         device = audio.get_default_input_device_info()
         audio.terminate()
         return device['index']
-    except:
+    except Exception:
         return None
