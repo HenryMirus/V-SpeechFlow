@@ -17,9 +17,9 @@ Lokales, offline Speech-to-Text-System für **deutsche Sprache** mit Speaker Dia
 
 ```
 ┌─────────────────────────────────────┐
-│   Python CLI (stt_cli.py)          │
-│   - Audio-Konvertierung (ffmpeg)   │
-│   - Benutzerfreundliche Argumente  │
+│   Python CLI (stt_cli.py)           │
+│   - Audio-Konvertierung (ffmpeg)    │
+│   - Benutzerfreundliche Argumente   │
 └──────────────┬──────────────────────┘
                │
                ▼
