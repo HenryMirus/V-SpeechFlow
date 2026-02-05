@@ -95,11 +95,11 @@ def get_recommended_threads() -> int:
     cpu_count = get_cpu_count()
     
     # Apple Silicon: Performance + Efficiency Cores
-    # M1: 8 cores (4P + 4E) → 6-8 threads optimal
-    # M2: 8 cores (4P + 4E) → 6-8 threads optimal
-    # M3: 8 cores (4P + 4E) → 6-8 threads optimal
-    # M3 Pro: 12 cores (6P + 6E) → 8-10 threads optimal
-    # M3 Max: 16 cores (12P + 4E) → 10-12 threads optimal
+    # M1: 8 cores (4P + 4E) → 4-6 threads optimal
+    # M2: 8 cores (4P + 4E) → 4-6 threads optimal
+    # M3: 8 cores (4P + 4E) → 4-6 threads optimal
+    # M3 Pro: 12 cores (6P + 6E) → 6-8 threads optimal
+    # M3 Max: 16 cores (12P + 4E) → 8-10 threads optimal
     
     if sys.platform == "darwin":
         cpu_brand = get_cpu_brand() 
@@ -107,11 +107,11 @@ def get_recommended_threads() -> int:
         if cpu_brand == "Apple":
             # Apple Silicon Empfehlungen
             if cpu_count <= 8:
-                return 6  # M1/M2/M3
+                return 4  # M1/M2/M3
             elif cpu_count <= 12:
-                return 8  # M3 Pro
+                return 6  # M3 Pro
             else:
-                return 10  # M3 Max
+                return 8  # M3 Max
         elif cpu_brand == "Intel":
             # Intel Empfehlungen
             if cpu_count <= 4:
@@ -127,7 +127,7 @@ def get_recommended_threads() -> int:
     elif cpu_count <= 8:
         return 6
     else:
-        return min(cpu_count - 2, 12)  # Max 12 threads
+        return min(cpu_count - 4, 12)  # Max 12 threads
 
 
 def get_system_info() -> Dict:

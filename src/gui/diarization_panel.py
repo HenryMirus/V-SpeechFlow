@@ -1,0 +1,370 @@
+"""
+Diarization Panel für Speaker Diarization
+
+Ermöglicht Konfiguration von Speaker Diarization mit verschiedenen Modi.
+"""
+
+from typing import Optional
+from PyQt6.QtWidgets import (
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QCheckBox,
+    QSpinBox,
+    QLineEdit,
+    QPushButton,
+    QRadioButton,
+    QButtonGroup,
+    QGroupBox,
+    QMessageBox,
+)
+from PyQt6.QtCore import Qt, pyqtSignal
+from PyQt6.QtGui import QFont
+from .macos_utils import get_hf_token_from_keychain, is_mac
+
+
+class DiarizationPanel(QWidget):
+    """Panel für Speaker Diarization Einstellungen."""
+    
+    # Signals
+    diarization_changed = pyqtSignal(dict)  # Emitted wenn sich Settings ändern
+    
+    def __init__(self):
+        super().__init__()
+        self.init_ui()
+    
+    def init_ui(self):
+        """Initialisiert die UI."""
+        layout = QVBoxLayout(self)
+        
+        # Titel
+        title = QLabel("👥 Speaker Diarization")
+        title_font = QFont()
+        title_font.setPointSize(12)
+        title_font.setBold(True)
+        title.setFont(title_font)
+        layout.addWidget(title)
+        
+        # Aktivierungs-Checkbox
+        self.enable_checkbox = QCheckBox("Speaker Diarization aktivieren")
+        self.enable_checkbox.setChecked(False)
+        self.enable_checkbox.stateChanged.connect(self.on_enable_changed)
+        layout.addWidget(self.enable_checkbox)
+        
+        info = QLabel("💡 Erkennt und trennt verschiedene Sprecher im Audio")
+        info.setStyleSheet("color: gray; font-size: 10px;")
+        info.setWordWrap(True)
+        layout.addWidget(info)
+        
+        # === Diarization Settings Group (nur aktiv wenn enabled) ===
+        self.settings_group = QGroupBox("Diarization Einstellungen")
+        self.settings_group.setEnabled(False)
+        settings_layout = QVBoxLayout()
+        
+        # === Modus-Auswahl ===
+        mode_label = QLabel("Modus:")
+        mode_label.setStyleSheet("font-weight: bold;")
+        settings_layout.addWidget(mode_label)
+        
+        # Radio Buttons für Modus
+        self.mode_group = QButtonGroup(self)
+        
+        self.exact_radio = QRadioButton("Exakte Sprecheranzahl (--num-speakers)")
+        self.exact_radio.setChecked(True)
+        self.exact_radio.toggled.connect(self.on_mode_changed)
+        self.mode_group.addButton(self.exact_radio, 1)
+        settings_layout.addWidget(self.exact_radio)
+        
+        # Exakte Anzahl Input
+        exact_layout = QHBoxLayout()
+        exact_layout.addSpacing(30)
+        exact_layout.addWidget(QLabel("Anzahl Sprecher:"))
+        
+        self.num_speakers_spinbox = QSpinBox()
+        self.num_speakers_spinbox.setMinimum(2)
+        self.num_speakers_spinbox.setMaximum(10)
+        self.num_speakers_spinbox.setValue(2)
+        self.num_speakers_spinbox.valueChanged.connect(self.emit_settings_changed)
+        exact_layout.addWidget(self.num_speakers_spinbox)
+        exact_layout.addStretch()
+        
+        settings_layout.addLayout(exact_layout)
+        
+        settings_layout.addSpacing(10)
+        
+        self.auto_radio = QRadioButton("Auto-Erkennung mit Min/Max (--min-speakers, --max-speakers)")
+        self.auto_radio.toggled.connect(self.on_mode_changed)
+        self.mode_group.addButton(self.auto_radio, 2)
+        settings_layout.addWidget(self.auto_radio)
+        
+        # Min/Max Input
+        minmax_layout = QHBoxLayout()
+        minmax_layout.addSpacing(30)
+        
+        minmax_layout.addWidget(QLabel("Min:"))
+        self.min_speakers_spinbox = QSpinBox()
+        self.min_speakers_spinbox.setMinimum(1)
+        self.min_speakers_spinbox.setMaximum(10)
+        self.min_speakers_spinbox.setValue(1)
+        self.min_speakers_spinbox.setEnabled(False)
+        self.min_speakers_spinbox.valueChanged.connect(self.on_min_changed)
+        minmax_layout.addWidget(self.min_speakers_spinbox)
+        
+        minmax_layout.addWidget(QLabel("Max:"))
+        self.max_speakers_spinbox = QSpinBox()
+        self.max_speakers_spinbox.setMinimum(1)
+        self.max_speakers_spinbox.setMaximum(10)
+        self.max_speakers_spinbox.setValue(5)
+        self.max_speakers_spinbox.setEnabled(False)
+        self.max_speakers_spinbox.valueChanged.connect(self.on_max_changed)
+        minmax_layout.addWidget(self.max_speakers_spinbox)
+        
+        minmax_layout.addStretch()
+        settings_layout.addLayout(minmax_layout)
+        
+        hint_minmax = QLabel("💡 System erkennt automatisch zwischen Min und Max Sprecher")
+        hint_minmax.setStyleSheet("color: gray; font-size: 9px; margin-left: 30px;")
+        hint_minmax.setWordWrap(True)
+        settings_layout.addWidget(hint_minmax)
+        
+        settings_layout.addSpacing(10)
+        
+        # === HuggingFace Token ===
+        token_label = QLabel("HuggingFace Token:")
+        token_label.setStyleSheet("font-weight: bold;")
+        settings_layout.addWidget(token_label)
+        
+        token_hint = QLabel(
+            "⚠️ Erforderlich für Speaker Diarization\n"
+            "Token erstellen: https://huggingface.co/settings/tokens"
+        )
+        token_hint.setStyleSheet("color: #f57c00; font-size: 9px;")
+        token_hint.setWordWrap(True)
+        settings_layout.addWidget(token_hint)
+        
+        token_layout = QHBoxLayout()
+        self.hf_token_input = QLineEdit()
+        self.hf_token_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self.hf_token_input.setPlaceholderText("hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+        self.hf_token_input.textChanged.connect(self.on_token_changed)
+        token_layout.addWidget(self.hf_token_input)
+        
+        btn_show_token = QPushButton("👁️")
+        btn_show_token.setFixedWidth(40)
+        btn_show_token.setCheckable(True)
+        btn_show_token.toggled.connect(self.toggle_token_visibility)
+        token_layout.addWidget(btn_show_token)
+        
+        btn_load_keychain = QPushButton("🔑 Keychain")
+        btn_load_keychain.clicked.connect(self.load_token_from_keychain)
+        token_layout.addWidget(btn_load_keychain)
+        
+        settings_layout.addLayout(token_layout)
+        
+        # Token Status
+        self.token_status = QLabel("⏳ Token nicht eingegeben")
+        self.token_status.setStyleSheet("color: gray; font-size: 9px;")
+        settings_layout.addWidget(self.token_status)
+        
+        # Keychain Hint (nur auf macOS)
+        if is_mac():
+            keychain_hint = QLabel(
+                "💡 Token speichern (Terminal):\n"
+                "security add-generic-password -s HF_V-Speechflow -a user -w \"hf_xxx\""
+            )
+            keychain_hint.setStyleSheet("color: gray; font-size: 8px; background-color: #f5f5f5; padding: 5px; border-radius: 3px;")
+            keychain_hint.setWordWrap(True)
+            settings_layout.addWidget(keychain_hint)
+        
+        settings_layout.addStretch()
+        self.settings_group.setLayout(settings_layout)
+        layout.addWidget(self.settings_group)
+        
+        layout.addStretch()
+        self.setLayout(layout)
+    
+    def on_enable_changed(self, state: int):
+        """Wird aufgerufen wenn Diarization aktiviert/deaktiviert wird."""
+        enabled = state == Qt.CheckState.Checked.value
+        self.settings_group.setEnabled(enabled)
+        self.emit_settings_changed()
+    
+    def on_mode_changed(self):
+        """Wird aufgerufen wenn sich der Modus ändert."""
+        is_exact = self.exact_radio.isChecked()
+        
+        # Exact mode: num_speakers aktiv, min/max deaktiviert
+        self.num_speakers_spinbox.setEnabled(is_exact)
+        self.min_speakers_spinbox.setEnabled(not is_exact)
+        self.max_speakers_spinbox.setEnabled(not is_exact)
+        
+        self.emit_settings_changed()
+    
+    def on_min_changed(self, value: int):
+        """Stellt sicher dass Min <= Max."""
+        if value > self.max_speakers_spinbox.value():
+            self.max_speakers_spinbox.setValue(value)
+        self.emit_settings_changed()
+    
+    def on_max_changed(self, value: int):
+        """Stellt sicher dass Max >= Min."""
+        if value < self.min_speakers_spinbox.value():
+            self.min_speakers_spinbox.setValue(value)
+        self.emit_settings_changed()
+    
+    def on_token_changed(self):
+        """Wird aufgerufen wenn sich der Token ändert."""
+        token = self.hf_token_input.text().strip()
+        
+        if not token:
+            self.token_status.setText("⏳ Token nicht eingegeben")
+            self.token_status.setStyleSheet("color: gray; font-size: 9px;")
+        elif self.validate_token_format(token):
+            self.token_status.setText("✓ Token Format gültig")
+            self.token_status.setStyleSheet("color: green; font-size: 9px;")
+        else:
+            self.token_status.setText("⚠ Ungültiges Token Format (erwartet: hf_xxx)")
+            self.token_status.setStyleSheet("color: orange; font-size: 9px;")
+        
+        self.emit_settings_changed()
+    
+    def validate_token_format(self, token: str) -> bool:
+        """
+        Validiert das Format des HuggingFace Tokens.
+        
+        Returns:
+            True wenn Format gültig (beginnt mit hf_ und hat min. 20 Zeichen)
+        """
+        return token.startswith("hf_") and len(token) >= 20
+    
+    def toggle_token_visibility(self, show: bool):
+        """Zeigt/versteckt den Token."""
+        if show:
+            self.hf_token_input.setEchoMode(QLineEdit.EchoMode.Normal)
+        else:
+            self.hf_token_input.setEchoMode(QLineEdit.EchoMode.Password)
+    
+    def load_token_from_keychain(self):
+        """Lädt HuggingFace Token aus macOS Keychain."""
+        token = get_hf_token_from_keychain()
+        
+        if token:
+            self.hf_token_input.setText(token)
+            QMessageBox.information(
+                self,
+                "✓ Token geladen",
+                "HuggingFace Token erfolgreich aus Keychain geladen!"
+            )
+        else:
+            if is_mac():
+                QMessageBox.information(
+                    self,
+                    "ℹ️ Token nicht gefunden",
+                    "Token nicht im Keychain gespeichert.\n\n"
+                    "Um den Token zu speichern, führen Sie in der Terminal aus:\n\n"
+                    "security add-generic-password -s HF_V-Speechflow -a user -w \"hf_xxxx\"\n\n"
+                    "Alternativ können Sie den Token oben manuell eingeben."
+                )
+            else:
+                QMessageBox.information(
+                    self,
+                    "ℹ️ macOS nur",
+                    "Keychain-Integration ist nur auf macOS verfügbar.\n"
+                    "Bitte geben Sie den Token manuell ein."
+                )
+    
+    def emit_settings_changed(self):
+        """Emittiert Signal mit aktuellen Diarization-Settings."""
+        settings = self.get_settings()
+        self.diarization_changed.emit(settings)
+    
+    def get_settings(self) -> dict:
+        """
+        Gibt alle aktuellen Diarization-Einstellungen zurück.
+        
+        Returns:
+            Dict mit allen Einstellungen
+        """
+        enabled = self.enable_checkbox.isChecked()
+        
+        if not enabled:
+            return {
+                'enabled': False,
+                'mode': None,
+                'num_speakers': None,
+                'min_speakers': None,
+                'max_speakers': None,
+                'hf_token': None,
+            }
+        
+        is_exact_mode = self.exact_radio.isChecked()
+        
+        return {
+            'enabled': True,
+            'mode': 'exact' if is_exact_mode else 'auto',
+            'num_speakers': self.num_speakers_spinbox.value() if is_exact_mode else None,
+            'min_speakers': self.min_speakers_spinbox.value() if not is_exact_mode else None,
+            'max_speakers': self.max_speakers_spinbox.value() if not is_exact_mode else None,
+            'hf_token': self.hf_token_input.text().strip() or None,
+        }
+    
+    def validate_settings(self) -> tuple[bool, Optional[str]]:
+        """
+        Validiert die Diarization-Einstellungen.
+        
+        Returns:
+            Tuple (is_valid, error_message)
+        """
+        settings = self.get_settings()
+        
+        if not settings['enabled']:
+            return True, None  # Wenn deaktiviert, keine Validierung nötig
+        
+        # Token prüfen
+        token = settings['hf_token']
+        if not token:
+            return False, "HuggingFace Token ist erforderlich für Speaker Diarization."
+        
+        if not self.validate_token_format(token):
+            return False, "HuggingFace Token hat ungültiges Format (muss mit 'hf_' beginnen)."
+        
+        # Sprecher-Anzahl prüfen
+        if settings['mode'] == 'exact':
+            if settings['num_speakers'] < 2:
+                return False, "Mindestens 2 Sprecher erforderlich."
+        else:  # auto mode
+            if settings['min_speakers'] < 1:
+                return False, "Minimale Sprecheranzahl muss mindestens 1 sein."
+            if settings['max_speakers'] < settings['min_speakers']:
+                return False, "Maximale Sprecheranzahl muss größer oder gleich minimaler Anzahl sein."
+        
+        return True, None
+    
+    def set_settings(self, settings: dict):
+        """
+        Setzt Diarization-Einstellungen (z.B. aus gespeicherten Profilen).
+        
+        Args:
+            settings: Dict mit Einstellungen
+        """
+        if 'enabled' in settings:
+            self.enable_checkbox.setChecked(settings['enabled'])
+        
+        if 'mode' in settings and settings['mode']:
+            if settings['mode'] == 'exact':
+                self.exact_radio.setChecked(True)
+            else:
+                self.auto_radio.setChecked(True)
+        
+        if 'num_speakers' in settings and settings['num_speakers']:
+            self.num_speakers_spinbox.setValue(settings['num_speakers'])
+        
+        if 'min_speakers' in settings and settings['min_speakers']:
+            self.min_speakers_spinbox.setValue(settings['min_speakers'])
+        
+        if 'max_speakers' in settings and settings['max_speakers']:
+            self.max_speakers_spinbox.setValue(settings['max_speakers'])
+        
+        if 'hf_token' in settings and settings['hf_token']:
+            self.hf_token_input.setText(settings['hf_token'])

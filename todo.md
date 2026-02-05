@@ -20,8 +20,8 @@
 - [x] Live-Aufnahme-Modus (--live starten) → Live-Tab mit Recording-Controls
 - [x] Mikrofon-Auswahl mit Device-Picker → ComboBox mit `refresh_devices()`
 - [x] Mikrofon-Liste auslesen (--list-devices) → `utils.list_audio_devices()` erstellt
-- [ ] Volume-Anzeige während Live-Recording → QProgressBar vorbereitet, benötigt Audio-Thread-Integration
-- [ ] Recording-Steuerung (Start/Stop/Pause) → Buttons erstellt, benötigt Live-Recorder-Integration
+- [x] Volume-Anzeige während Live-Recording → QProgressBar mit RecordingWorker integriert
+- [x] Recording-Steuerung (Start/Stop/Pause) → Vollständig integriert mit LiveRecorder
 
 ### 3. **Modell-Management**
 - [x] Modell-Pfad wählen → `model_panel.py` mit File-Dialog
@@ -37,34 +37,34 @@
 - [x] Temp-Dateien behalten (--keep-temp) → CheckBox
 
 ### 5. **Speaker Diarization**
-- [ ] Diarization aktivieren/deaktivieren (Checkbox)
-- [ ] **Modus wählen:**
-  - Exakte Sprecheranzahl (--num-speakers)
-  - Auto-Erkennung mit Min/Max (--min-speakers, --max-speakers)
-- [ ] Sprecher-Zahl Input
-- [ ] HuggingFace Token-Eingabe oder aus Keychain laden
-- [ ] Token-Validierung vor Prozessstart
+- [x] Diarization aktivieren/deaktivieren (Checkbox) → `diarization_panel.py` mit Enable-Checkbox
+- [x] **Modus wählen:** → Radio Buttons für Exact/Auto
+  - Exakte Sprecheranzahl (--num-speakers) → SpinBox für Anzahl
+  - Auto-Erkennung mit Min/Max (--min-speakers, --max-speakers) → Min/Max SpinBoxes
+- [x] Sprecher-Zahl Input → SpinBoxes mit Validierung
+- [x] HuggingFace Token-Eingabe oder aus Keychain laden → Input + Keychain-Button
+- [x] Token-Validierung vor Prozessstart → `validate_settings()` und `validate_token_format()`
 
 ### 6. **Ausgabe-Verwaltung**
-- [ ] Ausgabedatei-Pfad wählen
-- [ ] Segmente mit Timestamps (-s) als Checkbox
-- [ ] Plain-Text oder strukturierte Ausgabe wählen
-- [ ] Vorschau/Live-Output während Transkription
-- [ ] Export-Pfad validieren
+- [x] Ausgabedatei-Pfad wählen → `output_panel.py` mit File-Dialog und Auto-Pfad
+- [x] Segmente mit Timestamps (-s) als Checkbox → Checkbox mit Preview
+- [x] Plain-Text oder strukturierte Ausgabe wählen → Radio Buttons mit Live-Preview
+- [x] Vorschau/Live-Output während Transkription → QTextEdit in MainWindow mit `append_output()`
+- [x] Export-Pfad validieren → `validate_settings()` prüft Schreibbarkeit
 
 ### 7. **Prozessausführung**
-- [ ] Start-Button mit allen Parametern
-- [ ] Echtzeit-Konsolen-Output anzeigen
-- [ ] Fortschrittsbalken / Status-Anzeige
-- [ ] Fehlerbehandlung & aussagekräftige Fehlermeldungen
-- [ ] Prozess abbrechen (Ctrl+C)
-- [ ] „Done."-Meldung & Resultat-Preview
+- [x] Start-Button mit allen Parametern → `build_cli_arguments()` sammelt alle Settings
+- [x] Echtzeit-Konsolen-Output anzeigen → Threading in CLIWorker für stdout/stderr
+- [x] Fortschrittsbalken / Status-Anzeige → QProgressBar (indeterminate mode)
+- [x] Fehlerbehandlung & aussagekräftige Fehlermeldungen → Vollständige Validierung vor Start
+- [x] Prozess abbrechen (Ctrl+C) → Stop-Button mit Bestätigungs-Dialog
+- [x] „Done."-Meldung & Resultat-Preview → Success/Error Messages + Auto-Open Option
 
 ### 8. **UX-Essentials**
-- [ ] Voreingestellte Profile (z.B. „Schnelles Interview", „Hochqualitäts-Meeting")
-- [ ] Validierung: Pflichtfelder prüfen vor Start
-- [ ] Tastenkürzel (z.B. Enter = Start, Cmd+Q = Quit)
-- [ ] Logs speichern (für Debugging)
+- [x] Voreingestellte Profile (z.B. „Schnelles Interview", „Hochqualitäts-Meeting") → `profiles.py` mit 4 Default-Profilen
+- [x] Validierung: Pflichtfelder prüfen vor Start → Vollständige Validierung in `start_transcription()`
+- [x] Tastenkürzel (z.B. Enter = Start, Cmd+Q = Quit) → Strg+Enter, Escape, Strg+S, Strg+L, Strg+Q
+- [x] Logs speichern (für Debugging) → Logging-System mit Datei in ~/.vspeechflow/logs/
 
 ---
 

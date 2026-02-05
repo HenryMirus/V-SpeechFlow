@@ -6,6 +6,8 @@ Ermöglicht Auswahl von Audio-Dateien oder Live-Recording vom Mikrofon.
 
 from pathlib import Path
 from typing import Optional
+import tempfile
+from datetime import datetime
 from PyQt6.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -23,6 +25,7 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QDragLeaveEvent, QIcon
 from .utils import list_audio_devices
 from .macos_utils import get_hf_token_from_keychain, is_mac
+from .workers import RecordingWorker
 
 
 class InputPanel(QWidget):
@@ -40,6 +43,8 @@ class InputPanel(QWidget):
         self.selected_file = None
         self.device_list = []
         self.is_recording = False
+        self.recording_worker = None
+        self.recorded_file = None
         
         # Drag & Drop aktivieren auf dem ganzen Panel
         self.setAcceptDrops(True)
@@ -254,33 +259,68 @@ class InputPanel(QWidget):
         if self.is_recording:
             return
         
-        self.is_recording = True
+        # Device-Index ermitteln
         device_idx = self.mic_combo.currentData()
+        if device_idx is None or device_idx < 0:
+            QMessageBox.warning(
+                self,
+                "Kein Mikrofon",
+                "Bitte wählen Sie ein gültiges Mikrofon aus."
+            )
+            return
         
-        self.recording_status.setText("🔴 Aufnahme läuft...")
-        self.recording_status.setStyleSheet("color: red; font-weight: bold;")
+        # Temporäre WAV-Datei erstellen
+        temp_dir = Path(tempfile.gettempdir()) / "vspeechflow"
+        temp_dir.mkdir(exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_path = temp_dir / f"recording_{timestamp}.wav"
         
-        self.btn_start_recording.setEnabled(False)
-        self.btn_stop_recording.setEnabled(True)
-        self.mic_combo.setEnabled(False)
+        # Recording-Worker erstellen und starten
+        self.recording_worker = RecordingWorker(device_idx, output_path)
+        self.recording_worker.volume_updated.connect(self.on_volume_updated)
+        self.recording_worker.duration_updated.connect(self.on_duration_updated)
+        self.recording_worker.recording_error.connect(self.on_recording_error)
+        self.recording_worker.recording_finished.connect(self.on_recording_finished)
         
-        self.recording_started.emit()
+        try:
+            self.recording_worker.start()
+            
+            self.is_recording = True
+            self.recorded_file = str(output_path)
+            
+            self.recording_status.setText("🔴 Aufnahme läuft... (0.0s)")
+            self.recording_status.setStyleSheet("color: red; font-weight: bold;")
+            
+            self.btn_start_recording.setEnabled(False)
+            self.btn_stop_recording.setEnabled(True)
+            self.mic_combo.setEnabled(False)
+            
+            self.recording_started.emit()
+            
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Fehler",
+                f"Konnte Recording nicht starten:\n{str(e)}"
+            )
+            self.is_recording = False
     
     def stop_recording(self):
         """Stoppt die Live-Aufnahme."""
-        if not self.is_recording:
+        if not self.is_recording or not self.recording_worker:
             return
         
+        # Worker stoppen
+        self.recording_worker.stop()
+        self.recording_worker.wait(2000)  # 2 Sekunden warten
+        
         self.is_recording = False
+        self.volume_bar.setValue(0)
         
-        self.recording_status.setText("🔴 Bereit")
-        self.recording_status.setStyleSheet("color: green; font-weight: bold;")
+        self.recording_status.setText("⏹️ Gestoppt - Speichere...")
+        self.recording_status.setStyleSheet("color: orange; font-weight: bold;")
         
-        self.btn_start_recording.setEnabled(True)
-        self.btn_stop_recording.setEnabled(False)
-        self.mic_combo.setEnabled(True)
-        
-        self.recording_stopped.emit()
+        # UI wird in on_recording_finished() zurückgesetzt
     
     def load_hf_token_from_keychain(self):
         """Lädt HuggingFace Token aus macOS Keychain."""
@@ -350,6 +390,60 @@ class InputPanel(QWidget):
                 file_path = urls[0].toLocalFile()
                 self.set_file_path(file_path)
                 event.acceptProposedAction()
+    
+    def on_volume_updated(self, volume: float):
+        """Wird aufgerufen wenn sich das Volume ändert."""
+        self.volume_bar.setValue(int(volume))
+    
+    def on_duration_updated(self, duration: float):
+        """Wird aufgerufen wenn sich die Dauer ändert."""
+        self.recording_status.setText(f"🔴 Aufnahme läuft... ({duration:.1f}s)")
+    
+    def on_recording_error(self, error_msg: str):
+        """Wird aufgerufen wenn ein Fehler auftritt."""
+        QMessageBox.critical(
+            self,
+            "Recording-Fehler",
+            f"Fehler während der Aufnahme:\n{error_msg}"
+        )
+        
+        self.is_recording = False
+        self.volume_bar.setValue(0)
+        
+        self.recording_status.setText("❌ Fehler")
+        self.recording_status.setStyleSheet("color: red; font-weight: bold;")
+        
+        self.btn_start_recording.setEnabled(True)
+        self.btn_stop_recording.setEnabled(False)
+        self.mic_combo.setEnabled(True)
+    
+    def on_recording_finished(self, wav_path: str):
+        """Wird aufgerufen wenn die Aufnahme beendet ist."""
+        self.recorded_file = wav_path
+        self.selected_file = wav_path
+        
+        # Datei-Info anzeigen
+        path = Path(wav_path)
+        size_mb = path.stat().st_size / 1024 / 1024
+        
+        self.recording_status.setText(f"✅ Gespeichert: {path.name} ({size_mb:.1f}MB)")
+        self.recording_status.setStyleSheet("color: green; font-weight: bold;")
+        
+        # UI zurücksetzen
+        self.btn_start_recording.setEnabled(True)
+        self.btn_stop_recording.setEnabled(False)
+        self.mic_combo.setEnabled(True)
+        
+        # Signal für Datei-Auswahl emittieren
+        self.file_selected.emit(wav_path)
+        self.recording_stopped.emit()
+        
+        QMessageBox.information(
+            self,
+            "Aufnahme beendet",
+            f"Recording erfolgreich gespeichert!\n\nDatei: {path.name}\nGröße: {size_mb:.1f} MB\n\n"
+            f"Die Datei wurde automatisch als Input-Datei ausgewählt."
+        )
     
     def get_selected_file(self) -> Optional[str]:
         """Gibt den Pfad zur ausgewählten Datei zurück."""
