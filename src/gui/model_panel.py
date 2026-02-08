@@ -208,3 +208,9 @@ class ModelPanel(QWidget):
     def get_selected_model(self) -> Optional[str]:
         """Gibt den Pfad zum ausgewählten Modell zurück."""
         return self.selected_model
+    
+    def set_model_path(self, model_path: str):
+        """Setzt den Modell-Pfad programmatisch."""
+        if model_path and Path(model_path).exists():
+            self.model_path_input.setText(model_path)
+            self.validate_model_path()

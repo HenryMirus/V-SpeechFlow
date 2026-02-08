@@ -1,0 +1,281 @@
+"""
+Batch-Processing Window für V-SpeechFlow
+
+Separates Fenster für Batch-Verarbeitung mehrerer Audio-Dateien.
+"""
+
+import subprocess
+from pathlib import Path
+from PyQt6.QtWidgets import (
+    QDialog,
+    QVBoxLayout,
+    QHBoxLayout,
+    QPushButton,
+    QMessageBox,
+    QTextEdit,
+)
+from PyQt6.QtCore import Qt, QThread, pyqtSignal
+from .batch_panel import BatchPanel
+import logging
+
+
+class BatchWorker(QThread):
+    """Worker-Thread für Batch-Processing."""
+    
+    progress = pyqtSignal(int, int, str)  # current, total, filename
+    file_finished = pyqtSignal(str, bool, str)  # filepath, success, message
+    batch_finished = pyqtSignal(int, int)  # successful, failed
+    output_received = pyqtSignal(str)
+    
+    def __init__(self, files: list, cli_args_base: list, batch_options: dict):
+        super().__init__()
+        self.files = files
+        self.cli_args_base = cli_args_base
+        self.batch_options = batch_options
+        self.should_stop = False
+    
+    def run(self):
+        """Führt Batch-Processing aus."""
+        total = len(self.files)
+        successful = 0
+        failed = 0
+        
+        for i, file_path in enumerate(self.files, 1):
+            if self.should_stop:
+                break
+            
+            file_name = Path(file_path).name
+            self.progress.emit(i, total, file_name)
+            self.output_received.emit(f"\\n{'='*60}\\n")
+            self.output_received.emit(f"Verarbeite ({i}/{total}): {file_name}\\n")
+            
+            # CLI-Argumente anpassen für diese Datei
+            cli_args = self.cli_args_base.copy()
+            
+            # Input-Datei ersetzen
+            if "--input" in cli_args:
+                input_index = cli_args.index("--input")
+                cli_args[input_index + 1] = file_path
+            else:
+                cli_args.extend(["--input", file_path])
+            
+            # Output-Datei anpassen
+            if "--output" in cli_args:
+                output_index = cli_args.index("--output")
+                original_output = cli_args[output_index + 1]
+                
+                # Neuer Output-Pfad basierend auf Input
+                input_path = Path(file_path)
+                if self.batch_options.get('create_subfolder'):
+                    # Erstelle Unterordner für Batch-Outputs
+                    output_dir = input_path.parent / "transcripts"
+                    output_dir.mkdir(exist_ok=True)
+                    output_path = output_dir / f"{input_path.stem}_transcript.txt"
+                else:
+                    output_path = input_path.parent / f"{input_path.stem}_transcript.txt"
+                
+                cli_args[output_index + 1] = str(output_path)
+            
+            # CLI ausführen
+            try:
+                result = subprocess.run(
+                    ["python3", "-m", "src.python.stt_cli"] + cli_args,
+                    capture_output=True,
+                    text=True,
+                    check=False
+                )
+                
+                self.output_received.emit(result.stdout)
+                
+                if result.returncode == 0:
+                    successful += 1
+                    self.file_finished.emit(file_path, True, "✅ Erfolgreich")
+                    self.output_received.emit(f"✅ {file_name} erfolgreich verarbeitet\\n")
+                else:
+                    failed += 1
+                    error_msg = result.stderr if result.stderr else "Unbekannter Fehler"
+                    self.file_finished.emit(file_path, False, f"❌ Fehler: {error_msg}")
+                    self.output_received.emit(f"❌ {file_name} fehlgeschlagen: {error_msg}\\n")
+                    
+                    if self.batch_options.get('stop_on_error'):
+                        self.output_received.emit("\\n⚠️ Batch-Processing wegen Fehler abgebrochen\\n")
+                        break
+            
+            except Exception as e:
+                failed += 1
+                self.file_finished.emit(file_path, False, f"❌ Exception: {str(e)}")
+                self.output_received.emit(f"❌ {file_name} fehlgeschlagen: {str(e)}\\n")
+                
+                if self.batch_options.get('stop_on_error'):
+                    break
+        
+        self.batch_finished.emit(successful, failed)
+    
+    def stop(self):
+        """Stoppt den Batch-Prozess."""
+        self.should_stop = True
+
+
+class BatchWindow(QDialog):
+    """Dialog-Fenster für Batch-Processing."""
+    
+    def __init__(self, parent, settings_getter):
+        super().__init__(parent)
+        self.setWindowTitle("📦 Batch-Processing - V-SpeechFlow")
+        self.setGeometry(150, 150, 900, 700)
+        self.setModal(False)
+        
+        self.settings_getter = settings_getter  # Funktion um aktuelle Settings zu holen
+        self.batch_worker = None
+        self.is_processing = False
+        
+        self.init_ui()
+    
+    def init_ui(self):
+        """Initialisiert die UI."""
+        layout = QVBoxLayout(self)
+        
+        # Batch Panel
+        self.batch_panel = BatchPanel()
+        layout.addWidget(self.batch_panel)
+        
+        # Output-Bereich
+        self.output_text = QTextEdit()
+        self.output_text.setReadOnly(True)
+        self.output_text.setPlaceholderText("Batch-Verarbeitung Output wird hier angezeigt...")
+        self.output_text.setStyleSheet(
+            "font-family: 'Consolas', 'Monaco', monospace; "
+            "font-size: 9pt; background-color: #f5f5f5;"
+        )
+        self.output_text.setMaximumHeight(200)
+        layout.addWidget(self.output_text)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        
+        self.btn_start = QPushButton("▶️ Batch starten")
+        self.btn_start.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 10px;")
+        self.btn_start.clicked.connect(self.start_batch)
+        button_layout.addWidget(self.btn_start)
+        
+        self.btn_stop = QPushButton("⏹️ Abbrechen")
+        self.btn_stop.setStyleSheet("background-color: #f44336; color: white; font-weight: bold; padding: 10px;")
+        self.btn_stop.setEnabled(False)
+        self.btn_stop.clicked.connect(self.stop_batch)
+        button_layout.addWidget(self.btn_stop)
+        
+        self.btn_close = QPushButton("✕ Schließen")
+        self.btn_close.clicked.connect(self.close)
+        button_layout.addWidget(self.btn_close)
+        
+        layout.addLayout(button_layout)
+        self.setLayout(layout)
+    
+    def start_batch(self):
+        """Startet Batch-Processing."""
+        # Validierung
+        files = self.batch_panel.get_file_list()
+        
+        if not files:
+            QMessageBox.warning(self, "Keine Dateien", "Bitte fügen Sie mindestens eine Datei hinzu.")
+            return
+        
+        # CLI-Argumente von Parent holen
+        try:
+            cli_args = self.settings_getter()
+            
+            # Entferne --input falls vorhanden (wird pro Datei gesetzt)
+            if "--input" in cli_args:
+                input_index = cli_args.index("--input")
+                cli_args.pop(input_index + 1)  # Remove path
+                cli_args.pop(input_index)  # Remove --input
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Fehler", f"Fehler beim Erstellen der CLI-Argumente:\\n{str(e)}")
+            return
+        
+        # Batch-Optionen
+        batch_options = self.batch_panel.get_options()
+        
+        # UI vorbereiten
+        self.output_text.clear()
+        self.output_text.append("=== Batch-Processing gestartet ===\\n")
+        self.output_text.append(f"Dateien: {len(files)}\\n")
+        self.output_text.append(f"Optionen: {batch_options}\\n")
+        
+        self.is_processing = True
+        self.btn_start.setEnabled(False)
+        self.btn_stop.setEnabled(True)
+        self.btn_close.setEnabled(False)
+        
+        # Worker starten
+        self.batch_worker = BatchWorker(files, cli_args, batch_options)
+        self.batch_worker.progress.connect(self.on_progress)
+        self.batch_worker.file_finished.connect(self.on_file_finished)
+        self.batch_worker.batch_finished.connect(self.on_batch_finished)
+        self.batch_worker.output_received.connect(self.on_output)
+        self.batch_worker.start()
+    
+    def stop_batch(self):
+        """Stoppt Batch-Processing."""
+        if self.batch_worker:
+            reply = QMessageBox.question(
+                self,
+                "Batch abbrechen?",
+                "Möchten Sie das Batch-Processing wirklich abbrechen?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No
+            )
+            
+            if reply == QMessageBox.StandardButton.Yes:
+                self.batch_worker.stop()
+                self.output_text.append("\\n⏹️ Abbruch angefordert...\\n")
+    
+    def on_progress(self, current: int, total: int, filename: str):
+        """Wird aufgerufen bei Fortschritt."""
+        self.batch_panel.set_progress(current, total, filename)
+    
+    def on_file_finished(self, filepath: str, success: bool, message: str):
+        """Wird aufgerufen wenn eine Datei fertig ist."""
+        pass  # Optionally update file list widget
+    
+    def on_batch_finished(self, successful: int, failed: int):
+        """Wird aufgerufen wenn Batch fertig ist."""
+        self.is_processing = False
+        self.btn_start.setEnabled(True)
+        self.btn_stop.setEnabled(False)
+        self.btn_close.setEnabled(True)
+        
+        self.batch_panel.reset_progress()
+        
+        self.output_text.append(f"\\n{'='*60}\\n")
+        self.output_text.append("=== Batch-Processing abgeschlossen ===\\n")
+        self.output_text.append(f"✅ Erfolgreich: {successful}\\n")
+        self.output_text.append(f"❌ Fehlgeschlagen: {failed}\\n")
+        
+        QMessageBox.information(
+            self,
+            "Batch abgeschlossen",
+            f"Batch-Processing abgeschlossen!\\n\\n"
+            f"✅ Erfolgreich: {successful}\\n"
+            f"❌ Fehlgeschlagen: {failed}"
+        )
+    
+    def on_output(self, text: str):
+        """Wird aufgerufen bei Output."""
+        self.output_text.append(text)
+        self.output_text.verticalScrollBar().setValue(
+            self.output_text.verticalScrollBar().maximum()
+        )
+    
+    def closeEvent(self, event):
+        """Verhindert Schließen während Verarbeitung."""
+        if self.is_processing:
+            QMessageBox.warning(
+                self,
+                "Verarbeitung läuft",
+                "Batch-Processing läuft noch. Bitte warten Sie oder brechen Sie ab."
+            )
+            event.ignore()
+        else:
+            event.accept()

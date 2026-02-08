@@ -244,3 +244,159 @@ class ProfileManager:
             True wenn Default-Profil
         """
         return name in self.default_profiles
+    
+    def mark_as_favorite(self, name: str) -> bool:
+        """
+        Markiert ein Profil als Favorit.
+        
+        Args:
+            name: Name des Profils
+        
+        Returns:
+            True wenn erfolgreich
+        """
+        try:
+            user_profiles = self.load_user_profiles()
+            
+            if name in user_profiles:
+                user_profiles[name]['is_favorite'] = True
+                
+                with open(self.user_profiles_file, 'w', encoding='utf-8') as f:
+                    json.dump(user_profiles, f, indent=2, ensure_ascii=False)
+                
+                return True
+            return False
+        except Exception as e:
+            print(f"Fehler beim Markieren als Favorit: {e}")
+            return False
+    
+    def unmark_as_favorite(self, name: str) -> bool:
+        """
+        Entfernt Favoriten-Markierung von einem Profil.
+        
+        Args:
+            name: Name des Profils
+        
+        Returns:
+            True wenn erfolgreich
+        """
+        try:
+            user_profiles = self.load_user_profiles()
+            
+            if name in user_profiles:
+                user_profiles[name]['is_favorite'] = False
+                
+                with open(self.user_profiles_file, 'w', encoding='utf-8') as f:
+                    json.dump(user_profiles, f, indent=2, ensure_ascii=False)
+                
+                return True
+            return False
+        except Exception as e:
+            print(f"Fehler beim Entfernen der Favoriten-Markierung: {e}")
+            return False
+    
+    def get_favorites(self) -> List[str]:
+        """
+        Gibt alle als Favorit markierten Profile zurück.
+        
+        Returns:
+            Liste von Favoriten-Profil-Namen
+        """
+        user_profiles = self.load_user_profiles()
+        return [
+            name for name, profile in user_profiles.items()
+            if profile.get('is_favorite', False)
+        ]
+    
+    def duplicate_profile(self, source_name: str, new_name: str) -> bool:
+        """
+        Dupliziert ein Profil.
+        
+        Args:
+            source_name: Name des Quell-Profils
+            new_name: Name des neuen Profils
+        
+        Returns:
+            True wenn erfolgreich
+        """
+        source_profile = self.get_profile(source_name)
+        
+        if not source_profile:
+            return False
+        
+        # Kopie erstellen
+        new_profile = {
+            'description': f"Kopie von {source_name}",
+            'settings': source_profile['settings'].copy(),
+            'diarization': source_profile['diarization'].copy(),
+            'output': source_profile['output'].copy(),
+        }
+        
+        return self.save_profile(new_name, new_profile)
+    
+    def export_profile(self, name: str, export_path: Path) -> bool:
+        """
+        Exportiert ein Profil als JSON-Datei.
+        
+        Args:
+            name: Name des Profils
+            export_path: Pfad zur Export-Datei
+        
+        Returns:
+            True wenn erfolgreich
+        """
+        profile = self.get_profile(name)
+        
+        if not profile:
+            return False
+        
+        try:
+            export_data = {
+                'name': name,
+                'profile': profile,
+                'exported_at': datetime.now().isoformat(),
+                'version': '1.0'
+            }
+            
+            with open(export_path, 'w', encoding='utf-8') as f:
+                json.dump(export_data, f, indent=2, ensure_ascii=False)
+            
+            return True
+        except Exception as e:
+            print(f"Fehler beim Exportieren des Profils: {e}")
+            return False
+    
+    def import_profile(self, import_path: Path) -> tuple[bool, Optional[str]]:
+        """
+        Importiert ein Profil aus einer JSON-Datei.
+        
+        Args:
+            import_path: Pfad zur Import-Datei
+        
+        Returns:
+            Tuple (success: bool, profile_name: str or None)
+        """
+        try:
+            with open(import_path, 'r', encoding='utf-8') as f:
+                import_data = json.load(f)
+            
+            name = import_data.get('name')
+            profile = import_data.get('profile')
+            
+            if not name or not profile:
+                return False, None
+            
+            # Wenn Profil bereits existiert, füge Suffix hinzu
+            original_name = name
+            counter = 1
+            while name in self.get_all_profiles():
+                name = f"{original_name} ({counter})"
+                counter += 1
+            
+            if self.save_profile(name, profile):
+                return True, name
+            return False, None
+        except Exception as e:
+            print(f"Fehler beim Importieren des Profils: {e}")
+            return False, None
+

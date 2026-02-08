@@ -14,6 +14,9 @@ from PyQt6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QGroupBox,
+    QLineEdit,
+    QPushButton,
+    QFileDialog,
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
@@ -139,6 +142,41 @@ class SettingsPanel(QWidget):
         output_group.setLayout(output_layout)
         layout.addWidget(output_group)
         
+        # ===== Advanced Options =====
+        advanced_group = QGroupBox("🔧 Erweiterte Optionen")
+        advanced_layout = QVBoxLayout()
+        
+        # Binary Path
+        advanced_layout.addWidget(QLabel("STT Binary Pfad (optional):"))
+        
+        binary_layout = QHBoxLayout()
+        self.binary_path_input = QLineEdit()
+        self.binary_path_input.setPlaceholderText("Leer lassen für Auto-Detection (build/bin/stt_native)")
+        self.binary_path_input.textChanged.connect(self.emit_settings_changed)
+        binary_layout.addWidget(self.binary_path_input)
+        
+        btn_browse_binary = QPushButton("📂")
+        btn_browse_binary.setFixedWidth(40)
+        btn_browse_binary.setToolTip("Binary durchsuchen")
+        btn_browse_binary.clicked.connect(self.browse_binary_path)
+        binary_layout.addWidget(btn_browse_binary)
+        
+        btn_clear_binary = QPushButton("✕")
+        btn_clear_binary.setFixedWidth(40)
+        btn_clear_binary.setToolTip("Pfad löschen (Auto-Detection)")
+        btn_clear_binary.clicked.connect(lambda: self.binary_path_input.clear())
+        binary_layout.addWidget(btn_clear_binary)
+        
+        advanced_layout.addLayout(binary_layout)
+        
+        hint3 = QLabel("💡 Nur für Entwicklung/Debugging. Normalerweise automatisch erkannt.")
+        hint3.setStyleSheet("color: gray; font-size: 9px;")
+        hint3.setWordWrap(True)
+        advanced_layout.addWidget(hint3)
+        
+        advanced_group.setLayout(advanced_layout)
+        layout.addWidget(advanced_group)
+        
         layout.addStretch()
         self.setLayout(layout)
     
@@ -147,6 +185,18 @@ class SettingsPanel(QWidget):
         settings = self.get_settings()
         self.settings_changed.emit(settings)
     
+    def browse_binary_path(self):
+        """Öffnet Dialog zur Auswahl des Binary-Pfads."""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "STT Binary wählen",
+            "",
+            "Executable Dateien (stt_native*);;Alle Dateien (*)"
+        )
+        
+        if file_path:
+            self.binary_path_input.setText(file_path)
+    
     def get_settings(self) -> dict:
         """Gibt alle aktuellen Einstellungen zurück."""
         return {
@@ -154,6 +204,7 @@ class SettingsPanel(QWidget):
             'language': self.language_combo.currentData(),
             'translate': self.translate_checkbox.isChecked(),
             'keep_temp': self.keep_temp_checkbox.isChecked(),
+            'binary_path': self.binary_path_input.text().strip(),
         }
     
     def set_settings(self, settings: dict):
@@ -171,3 +222,6 @@ class SettingsPanel(QWidget):
         
         if 'keep_temp' in settings:
             self.keep_temp_checkbox.setChecked(settings['keep_temp'])
+        
+        if 'binary_path' in settings:
+            self.binary_path_input.setText(settings['binary_path'])

@@ -30,6 +30,9 @@ from .diarization_panel import DiarizationPanel
 from .output_panel import OutputPanel
 from .workers import CLIWorker
 from .profiles import ProfileManager
+from .history import HistoryManager
+from .batch_panel import BatchPanel
+from .theme import ThemeManager
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -50,9 +53,21 @@ class MainWindow(QMainWindow):
         # Profile-Manager
         self.profile_manager = ProfileManager()
         
+        # History-Manager
+        self.history_manager = HistoryManager()
+        
+        # Theme-Manager
+        self.theme_manager = ThemeManager()
+        
         # Logging einrichten
         self.setup_logging()
         self.log_info("V-SpeechFlow GUI gestartet")
+        
+        # Theme anwenden
+        self.apply_theme(self.theme_manager.get_current_theme())
+        
+        # Menu-Bar erstellen
+        self.create_menu_bar()
         
         # Zentral-Widget mit Layout
         central_widget = QWidget()
@@ -86,11 +101,24 @@ class MainWindow(QMainWindow):
         btn_save_profile.clicked.connect(self.save_current_profile)
         profile_layout.addWidget(btn_save_profile)
         
+        btn_duplicate_profile = QPushButton("📋")
+        btn_duplicate_profile.setToolTip("Profil duplizieren")
+        btn_duplicate_profile.setFixedWidth(35)
+        btn_duplicate_profile.clicked.connect(self.duplicate_selected_profile)
+        profile_layout.addWidget(btn_duplicate_profile)
+        
         btn_delete_profile = QPushButton("❌")
         btn_delete_profile.setToolTip("Profil löschen")
         btn_delete_profile.setFixedWidth(35)
         btn_delete_profile.clicked.connect(self.delete_selected_profile)
         profile_layout.addWidget(btn_delete_profile)
+        
+        # Mehr Options-Button (für Export/Import)
+        btn_profile_menu = QPushButton("⋮")
+        btn_profile_menu.setToolTip("Weitere Optionen")
+        btn_profile_menu.setFixedWidth(35)
+        btn_profile_menu.clicked.connect(self.show_profile_menu)
+        profile_layout.addWidget(btn_profile_menu)
         
         left_layout.addLayout(profile_layout)
         
@@ -292,6 +320,297 @@ class MainWindow(QMainWindow):
         """Loggt eine Warning-Nachricht."""
         self.logger.warning(message)
     
+    def create_menu_bar(self):
+        """Erstellt die Menu-Bar mit History und anderen Optionen."""
+        menubar = self.menuBar()
+        
+        # Datei-Menü
+        file_menu = menubar.addMenu("📁 Datei")
+        
+        # Recent Files Submenu
+        self.recent_files_menu = QMenu("🕒 Zuletzt verwendet", self)
+        file_menu.addMenu(self.recent_files_menu)
+        self.update_recent_files_menu()
+        
+        file_menu.addSeparator()
+        
+        # Recent Models Submenu
+        self.recent_models_menu = QMenu("🤖 Letzte Modelle", self)
+        file_menu.addMenu(self.recent_models_menu)
+        self.update_recent_models_menu()
+        
+        file_menu.addSeparator()
+        
+        # History löschen
+        clear_history_action = QAction("🗑️ History löschen", self)
+        clear_history_action.triggered.connect(self.clear_history)
+        file_menu.addAction(clear_history_action)
+        
+        file_menu.addSeparator()
+        
+        # Beenden
+        quit_action = QAction("❌ Beenden", self)
+        quit_action.setShortcut(QKeySequence("Ctrl+Q"))
+        quit_action.triggered.connect(self.close)
+        file_menu.addAction(quit_action)
+        
+        # Profile-Menü
+        profile_menu = menubar.addMenu("📋 Profile")
+        
+        # Favoriten Submenu
+        self.favorites_menu = QMenu("⭐ Favoriten", self)
+        profile_menu.addMenu(self.favorites_menu)
+        self.update_favorites_menu()
+        
+        profile_menu.addSeparator()
+        
+        # Export Profil
+        export_profile_action = QAction("📤 Profil exportieren...", self)
+        export_profile_action.triggered.connect(self.export_profile)
+        profile_menu.addAction(export_profile_action)
+        
+        # Import Profil
+        import_profile_action = QAction("📥 Profil importieren...", self)
+        import_profile_action.triggered.connect(self.import_profile)
+        profile_menu.addAction(import_profile_action)
+        
+        # Einstellungen-Menü
+        settings_menu = menubar.addMenu("⚙️ Einstellungen")
+        
+        # Theme Toggle
+        self.theme_action = QAction("🌙 Dark Mode", self)
+        self.theme_action.setCheckable(True)
+        self.theme_action.setChecked(self.theme_manager.get_current_theme() == 'dark')
+        self.theme_action.triggered.connect(self.toggle_theme)
+        settings_menu.addAction(self.theme_action)
+        
+        settings_menu.addSeparator()
+        
+        # Letzte Einstellungen laden
+        load_last_settings_action = QAction("⏮️ Letzte Einstellungen laden", self)
+        load_last_settings_action.triggered.connect(self.load_last_settings)
+        settings_menu.addAction(load_last_settings_action)
+        
+        # Batch-Processing
+        batch_action = QAction("📦 Batch-Processing", self)
+        batch_action.setShortcut(QKeySequence("Ctrl+B"))
+        batch_action.triggered.connect(self.open_batch_window)
+        settings_menu.addAction(batch_action)
+        
+        # Hilfe-Menü
+        help_menu = menubar.addMenu("❓ Hilfe")
+        
+        about_action = QAction("ℹ️ Über V-SpeechFlow", self)
+        about_action.triggered.connect(self.show_about)
+        help_menu.addAction(about_action)
+        
+        self.log_info("Menu-Bar erstellt")
+    
+    def update_recent_files_menu(self):
+        """Aktualisiert das Recent Files Menü."""
+        self.recent_files_menu.clear()
+        
+        recent_files = self.history_manager.get_recent_input_files(limit=10)
+        
+        if not recent_files:
+            no_files_action = QAction("(Keine zuletzt verwendeten Dateien)", self)
+            no_files_action.setEnabled(False)
+            self.recent_files_menu.addAction(no_files_action)
+            return
+        
+        for file_entry in recent_files:
+            file_path = file_entry["path"]
+            file_name = file_entry["name"]
+            size_mb = file_entry.get("size_mb", 0)
+            
+            action = QAction(f"{file_name} ({size_mb:.1f} MB)", self)
+            action.setToolTip(file_path)
+            action.triggered.connect(lambda checked, path=file_path: self.load_recent_file(path))
+            self.recent_files_menu.addAction(action)
+    
+    def update_recent_models_menu(self):
+        """Aktualisiert das Recent Models Menü."""
+        self.recent_models_menu.clear()
+        
+        recent_models = self.history_manager.get_recent_models(limit=5)
+        
+        if not recent_models:
+            no_models_action = QAction("(Keine zuletzt verwendeten Modelle)", self)
+            no_models_action.setEnabled(False)
+            self.recent_models_menu.addAction(no_models_action)
+            return
+        
+        for model_entry in recent_models:
+            model_path = model_entry["path"]
+            model_name = model_entry["name"]
+            size_mb = model_entry.get("size_mb", 0)
+            
+            action = QAction(f"{model_name} ({size_mb:.0f} MB)", self)
+            action.setToolTip(model_path)
+            action.triggered.connect(lambda checked, path=model_path: self.load_recent_model(path))
+            self.recent_models_menu.addAction(action)
+    
+    def load_recent_file(self, file_path: str):
+        """Lädt eine zuletzt verwendete Datei."""
+        if Path(file_path).exists():
+            self.input_panel.set_file_path(file_path)
+            self.log_info(f"Datei aus History geladen: {file_path}")
+        else:
+            QMessageBox.warning(
+                self,
+                "Datei nicht gefunden",
+                f"Die Datei existiert nicht mehr:\n{file_path}"
+            )
+            self.history_manager.remove_input_file(file_path)
+            self.update_recent_files_menu()
+    
+    def load_recent_model(self, model_path: str):
+        """Lädt ein zuletzt verwendetes Modell."""
+        if Path(model_path).exists():
+            self.model_panel.set_model_path(model_path)
+            self.log_info(f"Modell aus History geladen: {model_path}")
+        else:
+            QMessageBox.warning(
+                self,
+                "Modell nicht gefunden",
+                f"Das Modell existiert nicht mehr:\n{model_path}"
+            )
+            self.history_manager.remove_model(model_path)
+            self.update_recent_models_menu()
+    
+    def clear_history(self):
+        """Löscht die komplette History."""
+        reply = QMessageBox.question(
+            self,
+            "History löschen?",
+            "Möchten Sie wirklich die komplette History löschen?\\n\\n"
+            "Dies beinhaltet:\\n"
+            "• Zuletzt verwendete Dateien\\n"
+            "• Zuletzt verwendete Modelle\\n"
+            "• Letzte Einstellungen",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            self.history_manager.clear_history()
+            self.update_recent_files_menu()
+            self.update_recent_models_menu()
+            self.log_info("History gelöscht")
+            QMessageBox.information(self, "Fertig", "History wurde gelöscht.")
+    
+    def load_last_settings(self):
+        """Lädt die zuletzt verwendeten Einstellungen."""
+        last_settings = self.history_manager.get_last_settings()
+        
+        if not last_settings:
+            QMessageBox.information(
+                self,
+                "Keine History",
+                "Keine zuletzt verwendeten Einstellungen gefunden."
+            )
+            return
+        
+        # Settings in Panels laden
+        if 'settings' in last_settings:
+            self.settings_panel.set_settings(last_settings['settings'])
+        
+        if 'diarization' in last_settings:
+            self.diarization_panel.set_settings(last_settings['diarization'])
+        
+        if 'output' in last_settings:
+            self.output_panel.set_settings(last_settings['output'])
+        
+        self.log_info("Letzte Einstellungen geladen")
+        QMessageBox.information(self, "Geladen", "Letzte Einstellungen wurden geladen.")
+    
+    def save_current_session(self):
+        """Speichert die aktuelle Session in der History."""
+        session_data = {
+            'input_file': self.input_panel.get_selected_file(),
+            'model': self.model_panel.get_selected_model(),
+            'settings': self.settings_panel.get_settings(),
+            'diarization': self.diarization_panel.get_settings(),
+            'output': self.output_panel.get_settings(),
+        }
+        
+        # Settings speichern
+        settings_data = {
+            'settings': session_data['settings'],
+            'diarization': session_data['diarization'],
+            'output': session_data['output'],
+        }
+        self.history_manager.save_last_settings(settings_data)
+        
+        # Session speichern
+        self.history_manager.save_last_session(session_data)
+        self.log_info("Session in History gespeichert")
+    
+    def show_about(self):
+        """Zeigt About-Dialog."""
+        QMessageBox.about(
+            self,
+            "Über V-SpeechFlow",
+            "<h2>V-SpeechFlow</h2>"
+            "<p><b>Version:</b> 1.0.0</p>"
+            "<p><b>Speech-to-Text mit Speaker Diarization</b></p>"
+            "<p>Powered by Whisper.cpp und pyannote.audio</p>"
+            "<p>© 2026 V-SpeechFlow Team</p>"
+        )
+    
+    def open_batch_window(self):
+        """Öffnet das Batch-Processing Fenster."""
+        from .batch_window import BatchWindow
+        
+        # Settings-Getter Funktion erstellen
+        def get_current_cli_args():
+            return self.build_cli_arguments()
+        
+        batch_window = BatchWindow(self, get_current_cli_args)
+        batch_window.show()
+        self.log_info("Batch-Processing Fenster geöffnet")
+    
+    def toggle_theme(self):
+        """Wechselt zwischen Light und Dark Mode."""
+        current = self.theme_manager.get_current_theme()
+        new_theme = 'dark' if current == 'light' else 'light'
+        
+        self.apply_theme(new_theme)
+        self.theme_manager.save_theme_preference(new_theme)
+        
+        # Update Menu-Text
+        if new_theme == 'dark':
+            self.theme_action.setText("☀️ Light Mode")
+        else:
+            self.theme_action.setText("🌙 Dark Mode")
+        
+        self.log_info(f"Theme gewechselt zu: {new_theme}")
+    
+    def apply_theme(self, theme: str):
+        """Wendet das gewählte Theme an."""
+        stylesheet = self.theme_manager.get_stylesheet(theme)
+        self.setStyleSheet(stylesheet)
+        
+        # Spezielle Button-Styles die nicht überschrieben werden sollen
+        # (z.B. Start/Stop Buttons mit speziellen Farben)
+        # Diese müssen explizit gesetzt werden nach Theme-Anwendung
+        if hasattr(self, 'btn_start'):
+            if theme == 'dark':
+                self.btn_start.setStyleSheet(
+                    "background-color: #43A047; color: white; font-weight: bold; padding: 8px;"
+                )
+                self.btn_stop.setStyleSheet(
+                    "background-color: #E53935; color: white; font-weight: bold; padding: 8px;"
+                )
+            else:
+                self.btn_start.setStyleSheet(
+                    "background-color: #4CAF50; color: white; font-weight: bold; padding: 8px;"
+                )
+                self.btn_stop.setStyleSheet(
+                    "background-color: #f44336; color: white; font-weight: bold; padding: 8px;"
+                )
+    
+    
     def update_status(self):
         """Regelmäßige Status-Updates."""
         # Hier könnten später Auto-Save, etc. implementiert werden
@@ -377,6 +696,11 @@ class MainWindow(QMainWindow):
         self.cli_worker.process_finished.connect(self.on_cli_finished)
         self.cli_worker.start()
         self.log_info("CLI-Worker gestartet")
+        
+        # === History speichern ===
+        self.history_manager.add_input_file(input_file)
+        self.history_manager.add_model(model_path)
+        self.save_current_session()
     
     def build_cli_arguments(self) -> list:
         """
@@ -419,6 +743,9 @@ class MainWindow(QMainWindow):
         # Diarization
         diarization = self.diarization_panel.get_settings()
         if diarization.get('enabled'):
+            # Diarize Flag aktivieren
+            args.append("--diarize")
+            
             # HF Token
             if diarization.get('hf_token'):
                 args.extend(["--hf-token", diarization['hf_token']])
@@ -440,6 +767,11 @@ class MainWindow(QMainWindow):
         # Timestamps
         if output_settings.get('timestamps'):
             args.append("-s")
+        
+        # Binary Path (optional)
+        binary_path = settings.get('binary_path')
+        if binary_path and binary_path.strip():
+            args.extend(["--binary", binary_path])
         
         return args
     
@@ -470,6 +802,11 @@ class MainWindow(QMainWindow):
             input_file = self.input_panel.get_selected_file()
             output_path = self.output_panel.get_output_path(input_file)
             self.append_output(f"\n💾 Ausgabe gespeichert: {output_path}")
+            
+            # History aktualisieren
+            self.history_manager.add_output_path(output_path)
+            self.update_recent_files_menu()
+            self.update_recent_models_menu()
             
             self.statusBar().showMessage("✅ Transkription erfolgreich abgeschlossen!")
             
@@ -609,11 +946,23 @@ class MainWindow(QMainWindow):
         self.profile_combo.clear()
         self.profile_combo.addItem("-- Aktuell (nicht gespeichert) --")
         
-        # Profile hinzufügen (Default zuerst)
+        # Favoriten laden
+        favorites = self.profile_manager.get_favorites()
+        
+        # Profile hinzufügen (Default zuerst, dann User-Profile)
         profile_names = self.profile_manager.get_profile_names()
         for name in profile_names:
             is_default = self.profile_manager.is_default_profile(name)
-            display_name = f"⭐ {name}" if is_default else name
+            is_favorite = name in favorites
+            
+            # Markiere Defaults und Favoriten mit Stern
+            if is_default:
+                display_name = f"⭐ {name}"
+            elif is_favorite:
+                display_name = f"⭐ {name}"
+            else:
+                display_name = name
+            
             self.profile_combo.addItem(display_name, name)
         
         # Versuche vorherige Auswahl wiederherzustellen
@@ -625,6 +974,7 @@ class MainWindow(QMainWindow):
         
         self.profile_combo.blockSignals(False)
         self.log_info(f"Profil-Liste aktualisiert: {len(profile_names)} Profile")
+
     
     def on_profile_selected(self, text: str):
         """Wird aufgerufen wenn ein Profil ausgewählt wird."""
@@ -744,6 +1094,160 @@ class MainWindow(QMainWindow):
                 QMessageBox.critical(self, "Fehler", f"Profil '{profile_name}' konnte nicht gelöscht werden.")
                 self.log_error(f"Fehler beim Löschen von Profil: {profile_name}")
     
+    def duplicate_selected_profile(self):
+        """Dupliziert das aktuell ausgewählte Profil."""
+        current_text = self.profile_combo.currentText()
+        
+        if current_text.startswith("--"):
+            QMessageBox.information(self, "Info", "Kein Profil zum Duplizieren ausgewählt.")
+            return
+        
+        # Entferne Stern
+        source_name = current_text.replace("⭐ ", "")
+        
+        # Neuen Namen eingeben
+        new_name, ok = QInputDialog.getText(
+            self,
+            "Profil duplizieren",
+            f"Neuer Name für die Kopie von '{source_name}':",
+            text=f"{source_name} (Kopie)"
+        )
+        
+        if ok and new_name:
+            if self.profile_manager.duplicate_profile(source_name, new_name):
+                self.refresh_profile_list()
+                # Wähle das neue Profil aus
+                index = self.profile_combo.findText(new_name, Qt.MatchFlag.MatchContains)
+                if index >= 0:
+                    self.profile_combo.setCurrentIndex(index)
+                QMessageBox.information(self, "Erfolg", f"Profil wurde als '{new_name}' dupliziert.")
+                self.log_info(f"Profil dupliziert: {source_name} -> {new_name}")
+            else:
+                QMessageBox.critical(self, "Fehler", "Profil konnte nicht dupliziert werden.")
+    
+    def show_profile_menu(self):
+        """Zeigt ein Kontextmenü für Profile-Optionen."""
+        menu = QMenu(self)
+        
+        # Favorit markieren/entfernen
+        current_text = self.profile_combo.currentText()
+        if not current_text.startswith("--"):
+            profile_name = current_text.replace("⭐ ", "")
+            
+            # Prüfe ob bereits Favorit
+            favorites = self.profile_manager.get_favorites()
+            if profile_name in favorites:
+                unfav_action = QAction("⭐ Als Favorit entfernen", self)
+                unfav_action.triggered.connect(lambda: self.toggle_favorite(profile_name, False))
+                menu.addAction(unfav_action)
+            else:
+                fav_action = QAction("⭐ Als Favorit markieren", self)
+                fav_action.triggered.connect(lambda: self.toggle_favorite(profile_name, True))
+                menu.addAction(fav_action)
+            
+            menu.addSeparator()
+        
+        # Export/Import
+        export_action = QAction("📤 Profil exportieren...", self)
+        export_action.triggered.connect(self.export_profile)
+        menu.addAction(export_action)
+        
+        import_action = QAction("📥 Profil importieren...", self)
+        import_action.triggered.connect(self.import_profile)
+        menu.addAction(import_action)
+        
+        # Zeige Menü unter dem Button
+        menu.exec(self.sender().mapToGlobal(self.sender().rect().bottomLeft()))
+    
+    def toggle_favorite(self, profile_name: str, mark_as_favorite: bool):
+        """Markiert/Entmarkiert Profil als Favorit."""
+        if mark_as_favorite:
+            if self.profile_manager.mark_as_favorite(profile_name):
+                self.log_info(f"Profil als Favorit markiert: {profile_name}")
+            else:
+                QMessageBox.warning(self, "Fehler", "Profil konnte nicht als Favorit markiert werden.")
+        else:
+            if self.profile_manager.unmark_as_favorite(profile_name):
+                self.log_info(f"Favoriten-Markierung entfernt: {profile_name}")
+            else:
+                QMessageBox.warning(self, "Fehler", "Favoriten-Markierung konnte nicht entfernt werden.")
+        
+        self.refresh_profile_list()
+        self.update_favorites_menu()
+    
+    def export_profile(self):
+        """Exportiert das aktuell ausgewählte Profil."""
+        current_text = self.profile_combo.currentText()
+        
+        if current_text.startswith("--"):
+            QMessageBox.information(self, "Info", "Kein Profil zum Exportieren ausgewählt.")
+            return
+        
+        profile_name = current_text.replace("⭐ ", "")
+        
+        # Datei-Dialog
+        from PyQt6.QtWidgets import QFileDialog
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Profil exportieren",
+            f"{profile_name}.json",
+            "JSON Dateien (*.json)"
+        )
+        
+        if file_path:
+            if self.profile_manager.export_profile(profile_name, Path(file_path)):
+                QMessageBox.information(self, "Erfolg", f"Profil wurde exportiert nach:\n{file_path}")
+                self.log_info(f"Profil exportiert: {profile_name} -> {file_path}")
+            else:
+                QMessageBox.critical(self, "Fehler", "Profil konnte nicht exportiert werden.")
+    
+    def import_profile(self):
+        """Importiert ein Profil aus einer JSON-Datei."""
+        from PyQt6.QtWidgets import QFileDialog
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Profil importieren",
+            "",
+            "JSON Dateien (*.json)"
+        )
+        
+        if file_path:
+            success, profile_name = self.profile_manager.import_profile(Path(file_path))
+            
+            if success:
+                self.refresh_profile_list()
+                # Wähle das importierte Profil aus
+                index = self.profile_combo.findText(profile_name, Qt.MatchFlag.MatchContains)
+                if index >= 0:
+                    self.profile_combo.setCurrentIndex(index)
+                QMessageBox.information(self, "Erfolg", f"Profil '{profile_name}' wurde importiert.")
+                self.log_info(f"Profil importiert: {file_path} -> {profile_name}")
+            else:
+                QMessageBox.critical(self, "Fehler", "Profil konnte nicht importiert werden.\nÜberprüfen Sie die Datei.")
+    
+    def update_favorites_menu(self):
+        """Aktualisiert das Favoriten-Menü."""
+        self.favorites_menu.clear()
+        
+        favorites = self.profile_manager.get_favorites()
+        
+        if not favorites:
+            no_fav_action = QAction("(Keine Favoriten)", self)
+            no_fav_action.setEnabled(False)
+            self.favorites_menu.addAction(no_fav_action)
+            return
+        
+        for fav_name in favorites:
+            action = QAction(f"⭐ {fav_name}", self)
+            action.triggered.connect(lambda checked, name=fav_name: self.load_profile_by_name(name))
+            self.favorites_menu.addAction(action)
+    
+    def load_profile_by_name(self, profile_name: str):
+        """Lädt ein Profil anhand des Namens."""
+        index = self.profile_combo.findText(profile_name, Qt.MatchFlag.MatchContains)
+        if index >= 0:
+            self.profile_combo.setCurrentIndex(index)
+    
     def closeEvent(self, event):
         """Wird aufgerufen wenn das Fenster geschlossen wird."""
         # Prüfe ob Prozess läuft
@@ -764,6 +1268,9 @@ class MainWindow(QMainWindow):
             if self.cli_worker:
                 self.cli_worker.stop()
                 self.cli_worker.wait(2000)
+        
+        # Session speichern
+        self.save_current_session()
         
         self.log_info("=== V-SpeechFlow GUI beendet ===")
         event.accept()

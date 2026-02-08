@@ -71,11 +71,10 @@
 ## **🌟 OPTIONALE FEATURES** (Neue Ideen für bessere UX)
 
 ### **Komfort & Workflow**
-- [ ] History/Zuletzt verwendet (letzte Dateien, Einstellungen merken)
-- [ ] Favoriten-Profile speichern & laden
-- [ ] Batch-Processing (mehrere Dateien nacheinander)
-- [ ] Dunkelmodus / Hell-Modus Toggle
-- [ ] Vollständiger Audio-Editor mit Wellenform-Anzeige
+- [x] History/Zuletzt verwendet (letzte Dateien, Einstellungen merken) → `history.py` mit HistoryManager + Menu-Bar Integration
+- [x] Favoriten-Profile speichern & laden → Profile mit Favoriten-Markierung, Export/Import, Duplizieren
+- [x] Batch-Processing (mehrere Dateien nacheinander) → `batch_panel.py` + `batch_window.py` mit Worker
+- [x] Dunkelmodus / Hell-Modus Toggle → `theme.py` mit ThemeManager + Toggle im Settings-Menu
 
 ### **Fortgeschrittene Ausgabe**
 - [ ] Export-Formate: JSON, SRT (Untertitel), VTT, CSV
