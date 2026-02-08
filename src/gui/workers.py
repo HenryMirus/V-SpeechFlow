@@ -7,6 +7,7 @@ Verwaltet die CLI-Prozesse und deren Output.
 import subprocess
 import sys
 import os
+import re
 from pathlib import Path
 from PyQt6.QtCore import QThread, pyqtSignal
 
@@ -17,6 +18,47 @@ class CLIWorker(QThread):
     output_received = pyqtSignal(str)  # Signal für stdout
     error_received = pyqtSignal(str)   # Signal für stderr
     process_finished = pyqtSignal(int) # Signal für Prozessende (Return-Code)
+    progress_updated = pyqtSignal(float, float)  # Signal für Progress (percentage, current_timestamp)
+    
+    def __init__(self, arguments: list):
+        """
+        Initialisiert den CLI-Worker.
+        
+        Args:
+            arguments: Liste der CLI-Argumente
+        """
+        super().__init__()
+        self.arguments = arguments
+        self.process = None
+        self.last_timestamp = 0.0
+    
+    def parse_timestamp_from_output(self, line: str) -> float:
+        """
+        Parst Timestamps aus Whisper Output.
+        
+        Sucht nach Patterns wie [00:01:23.456 --> 00:01:25.789] oder ähnlich.
+        
+        Args:
+            line: Output-Zeile
+            
+        Returns:
+            Timestamp in Sekunden oder 0.0
+        """
+        # Pattern für Timestamps: [HH:MM:SS.mmm --> HH:MM:SS.mmm]
+        pattern = r'\[(\d{2}):(\d{2}):(\d{2})\.(\d{3})\s*-->'
+        match = re.search(pattern, line)
+        
+        if match:
+            hours, minutes, seconds, milliseconds = match.groups()
+            total_seconds = (
+                int(hours) * 3600 +
+                int(minutes) * 60 +
+                int(seconds) +
+                int(milliseconds) / 1000.0
+            )
+            return total_seconds
+        
+        return 0.0
     
     def __init__(self, arguments: list):
         """
@@ -59,10 +101,19 @@ class CLIWorker(QThread):
             import threading
             
             def read_stdout():
-                """Liest stdout in separatem Thread."""
+                """Liest stdout in Echtzeit und parst Timestamps."""
                 for line in iter(self.process.stdout.readline, ''):
                     if line:
-                        self.output_received.emit(line.rstrip())
+                        line_stripped = line.rstrip()
+                        self.output_received.emit(line_stripped)
+                        
+                        # Versuche Timestamp zu parsen
+                        timestamp = self.parse_timestamp_from_output(line_stripped)
+                        if timestamp > 0 and timestamp > self.last_timestamp:
+                            self.last_timestamp = timestamp
+                            # Emittiere Progress-Update (percentage wird später berechnet)
+                            self.progress_updated.emit(0.0, timestamp)
+                
                 self.process.stdout.close()
             
             def read_stderr():

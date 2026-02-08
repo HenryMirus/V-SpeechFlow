@@ -86,12 +86,12 @@
 ### **Qualität & Monitoring**
 - [ ] Audio-Qualitäts-Check vor Transkription
 - [ ] Diarization-Qualitäts-Score anzeigen
-- [ ] Zeitschätzung (wie lange dauert die Verarbeitung?)
+- [x] Zeitschätzung (wie lange dauert die Verarbeitung?) → `time_estimator.py` mit dynamischer ETA, Progress % und Speed-Info
 - [ ] RAM-Monitoring (modellabhängig)
 - [ ] Modell-Benchmark (Geschwindigkeit testen)
 
 ### **Integration & Automatisierung**
-- [ ] Transkript automatisch in Texteditor öffnen
+- [x] Transkript automatisch in Texteditor öffnen
 - [ ] Direkt in Notion/Obsidian/Apple Notes exportieren
 - [ ] Automatische Correktion häufiger Fehler (z.B. deutsche Umlaute)
 - [ ] Webhook/API für externe Systeme

@@ -33,6 +33,7 @@ from .profiles import ProfileManager
 from .history import HistoryManager
 from .batch_panel import BatchPanel
 from .theme import ThemeManager
+from .time_estimator import TimeEstimator
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -58,6 +59,9 @@ class MainWindow(QMainWindow):
         
         # Theme-Manager
         self.theme_manager = ThemeManager()
+        
+        # Time-Estimator für Fortschritts-Berechnung
+        self.time_estimator = TimeEstimator()
         
         # Logging einrichten
         self.setup_logging()
@@ -178,8 +182,17 @@ class MainWindow(QMainWindow):
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         self.progress_bar.setTextVisible(True)
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
         self.progress_bar.setFormat("%p% - Verarbeitung läuft...")
         right_layout.addWidget(self.progress_bar)
+        
+        # ETA Label
+        self.eta_label = QLabel("")
+        self.eta_label.setVisible(False)
+        self.eta_label.setStyleSheet("color: gray; font-size: 10px; text-align: center;")
+        self.eta_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        right_layout.addWidget(self.eta_label)
         
         # Control Buttons
         button_layout = QHBoxLayout()
@@ -211,6 +224,11 @@ class MainWindow(QMainWindow):
         self.status_timer = QTimer(self)
         self.status_timer.timeout.connect(self.update_status)
         self.status_timer.start(5000)  # Alle 5 Sekunden
+        
+        # Progress-Update Timer (für kontinuierliches ETA-Update)
+        self.progress_timer = QTimer(self)
+        self.progress_timer.timeout.connect(self.update_progress_display)
+        # Timer wird nur während Verarbeitung aktiviert
     
     def on_file_selected(self, file_path: str):
         """Wird aufgerufen wenn eine Datei ausgewählt wird."""
@@ -616,6 +634,27 @@ class MainWindow(QMainWindow):
         # Hier könnten später Auto-Save, etc. implementiert werden
         pass
     
+    def update_progress_display(self):
+        """Aktualisiert die Progress-Anzeige regelmäßig (auch ohne neue Timestamps)."""
+        if not self.is_processing:
+            return
+        
+        # Time Estimator ohne neuen Timestamp aktualisieren (nutzt verstrichene Zeit)
+        self.time_estimator.update(None)
+        
+        # Aktuelle Werte holen
+        progress_pct = self.time_estimator.get_progress_percentage(None)
+        elapsed = self.time_estimator.get_elapsed_time_str()
+        remaining = self.time_estimator.get_remaining_time_str(None)
+        speed = self.time_estimator.get_speed_info()
+        
+        # UI aktualisieren (nur wenn sich was geändert hat)
+        if progress_pct > 0:
+            self.progress_bar.setValue(int(progress_pct))
+        
+        eta_text = f"🕒 Verstrichen: {elapsed} | Restzeit: ~{remaining} | Speed: {speed}"
+        self.eta_label.setText(eta_text)
+    
     def on_recording_started(self):
         """Wird aufgerufen wenn Live-Recording startet."""
         self.statusBar().showMessage("🔴 Aufnahme läuft...")
@@ -685,17 +724,28 @@ class MainWindow(QMainWindow):
         self.btn_start.setEnabled(False)
         self.btn_stop.setEnabled(True)
         self.progress_bar.setVisible(True)
-        self.progress_bar.setRange(0, 0)  # Indeterminate mode
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.eta_label.setVisible(True)
+        self.eta_label.setText("🕒 Berechne Restzeit...")
         self.statusBar().showMessage("⏳ Transkription läuft...")
         
         # === CLI-Worker starten ===
         self.log_info("CLI-Worker wird gestartet...")
+        
+        # Time Estimator starten
+        self.time_estimator.start(input_file)
+        
         self.cli_worker = CLIWorker(cli_args)
         self.cli_worker.output_received.connect(self.on_cli_output)
         self.cli_worker.error_received.connect(self.on_cli_error)
         self.cli_worker.process_finished.connect(self.on_cli_finished)
+        self.cli_worker.progress_updated.connect(self.on_cli_progress)
         self.cli_worker.start()
         self.log_info("CLI-Worker gestartet")
+        
+        # Progress Timer starten für regelmäßige Updates
+        self.progress_timer.start(1000)  # Jede Sekunde
         
         # === History speichern ===
         self.history_manager.add_input_file(input_file)
@@ -784,13 +834,44 @@ class MainWindow(QMainWindow):
         # Errors in roter Farbe anzeigen
         self.append_output(f"<span style='color: red;'>[ERROR] {text}</span>")
     
+    def on_cli_progress(self, percentage: float, current_timestamp: float):
+        """Wird aufgerufen wenn Fortschritt gemeldet wird."""
+        # Time Estimator aktualisieren
+        self.time_estimator.update(current_timestamp)
+        
+        # Progress berechnen
+        progress_pct = self.time_estimator.get_progress_percentage(current_timestamp)
+        
+        # Progress Bar aktualisieren
+        self.progress_bar.setValue(int(progress_pct))
+        
+        # ETA und weitere Infos
+        elapsed = self.time_estimator.get_elapsed_time_str()
+        remaining = self.time_estimator.get_remaining_time_str(current_timestamp)
+        speed = self.time_estimator.get_speed_info()
+        
+        eta_text = f"🕒 Verstrichen: {elapsed} | Restzeit: ~{remaining} | Speed: {speed}"
+        self.eta_label.setText(eta_text)
+        
+        # Status Bar
+        self.statusBar().showMessage(
+            f"⏳ Transkription: {progress_pct:.1f}% | Restzeit: ~{remaining}"
+        )
+    
     def on_cli_finished(self, return_code: int):
         """Wird aufgerufen wenn der CLI-Prozess beendet ist."""
         self.log_info(f"CLI-Prozess beendet mit Exit-Code: {return_code}")
         self.is_processing = False
         self.progress_bar.setVisible(False)
+        self.eta_label.setVisible(False)
+        # Progress Timer stoppen
+        self.progress_timer.stop()
+        
         self.btn_start.setEnabled(True)
         self.btn_stop.setEnabled(False)
+        
+        # Time Estimator zurücksetzen
+        self.time_estimator.reset()
         
         if return_code == 0:
             # Erfolg
@@ -874,9 +955,16 @@ class MainWindow(QMainWindow):
             self.log_info("Transkription abgebrochen")
             self.is_processing = False
             self.progress_bar.setVisible(False)
+            self.eta_label.setVisible(False)
             self.btn_start.setEnabled(True)
+            # Progress Timer stoppen
+            self.progress_timer.stop()
+            
             self.btn_stop.setEnabled(False)
             self.statusBar().showMessage("Transkription abgebrochen")
+            
+            # Time Estimator zurücksetzen
+            self.time_estimator.reset()
     
     def append_output(self, text: str):
         """
