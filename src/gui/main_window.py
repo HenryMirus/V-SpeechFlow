@@ -34,6 +34,8 @@ from .history import HistoryManager
 from .batch_panel import BatchPanel
 from .theme import ThemeManager
 from .time_estimator import TimeEstimator
+from .translations import tr, set_language, get_translation_manager
+from .onboarding import OnboardingManager
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -57,15 +59,23 @@ class MainWindow(QMainWindow):
         # History-Manager
         self.history_manager = HistoryManager()
         
+        # Onboarding-Manager (wird erst beim Start initialisiert)
+        self.onboarding_manager = None
+        
         # Theme-Manager
         self.theme_manager = ThemeManager()
         
         # Time-Estimator für Fortschritts-Berechnung
         self.time_estimator = TimeEstimator()
         
+        # Sprache laden und setzen
+        saved_language = self.history_manager.get_user_preference('ui_language', 'de')
+        set_language(saved_language)
+        
         # Logging einrichten
         self.setup_logging()
         self.log_info("V-SpeechFlow GUI gestartet")
+        self.log_info(f"UI Language: {saved_language}")
         
         # Theme anwenden
         self.apply_theme(self.theme_manager.get_current_theme())
@@ -86,7 +96,7 @@ class MainWindow(QMainWindow):
         
         # Titel
         title = QLabel("V-SpeechFlow GUI")
-        title.setStyleSheet("font-size: 18px; font-weight: bold;")
+        title.setStyleSheet("font-size: 19px; font-weight: bold;")
         left_layout.addWidget(title)
         
         # Profile-Auswahl
@@ -162,7 +172,7 @@ class MainWindow(QMainWindow):
         right_layout = QVBoxLayout(right_panel)
         
         output_title = QLabel("📋 Output Preview / Live-Transkription")
-        output_title.setStyleSheet("font-weight: bold; font-size: 12px;")
+        output_title.setStyleSheet("font-weight: bold; font-size: 13px;")
         right_layout.addWidget(output_title)
         
         # Output Text Area mit QTextEdit für Live-Output
@@ -190,7 +200,7 @@ class MainWindow(QMainWindow):
         # ETA Label
         self.eta_label = QLabel("")
         self.eta_label.setVisible(False)
-        self.eta_label.setStyleSheet("color: gray; font-size: 10px; text-align: center;")
+        self.eta_label.setStyleSheet("color: gray; font-size: 11px; text-align: center;")
         self.eta_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         right_layout.addWidget(self.eta_label)
         
@@ -229,10 +239,178 @@ class MainWindow(QMainWindow):
         self.progress_timer = QTimer(self)
         self.progress_timer.timeout.connect(self.update_progress_display)
         # Timer wird nur während Verarbeitung aktiviert
+        
+        # Config beim Start laden (initial_config oder last_session)
+        QTimer.singleShot(100, self.load_startup_config)  # Nach 100ms
+        
+        # Model-Update-Check beim Start (verzögert)
+        QTimer.singleShot(3000, self.check_model_updates)  # Nach 3 Sekunden
     
     def on_file_selected(self, file_path: str):
         """Wird aufgerufen wenn eine Datei ausgewählt wird."""
         self.statusBar().showMessage(f"Datei ausgewählt: {file_path}")
+    
+    def load_startup_config(self):
+        """
+        Lädt Konfiguration beim App-Start:
+        1. Wenn initial_config vorhanden und nicht angewendet -> Lade initial_config
+        2. Sonst -> Lade last_session
+        """
+        # Prüfe ob initial_config vorhanden und noch nicht angewendet
+        initial_config = self.history_manager.get_initial_config()
+        
+        if initial_config:
+            # Erster Start nach Wizard - lade initial_config
+            self.log_info("Erster Start nach Wizard - lade Initial-Config")
+            self.load_initial_config(initial_config)
+            self.history_manager.mark_initial_config_applied()
+        else:
+            # Normaler Start - lade last_session
+            self.log_info("Lade letzte Session")
+            self.load_last_session()
+    
+    def load_initial_config(self, config: dict):
+        """
+        Lädt die Initial-Konfiguration aus dem Installation-Wizard.
+        Wird nur beim ersten Start nach Wizard-Abschluss aufgerufen.
+        
+        Args:
+            config: Dictionary mit Wizard-Einstellungen
+        """
+        self.log_info("Lade Initial-Config aus Wizard...")
+        print(f"\n=== Lade Initial-Config (erster Start) ===")
+        print(f"Config-Keys: {list(config.keys())}")
+        
+        # Model Panel
+        if 'default_model' in config and config['default_model']:
+            model_path = config['default_model']
+            if Path(model_path).exists():
+                self.model_panel.set_model_path(model_path)
+                self.log_info(f"Model aus Initial-Config geladen: {model_path}")
+                print(f"  ✓ Model: {model_path}")
+            else:
+                self.log_warning(f"Model aus Initial-Config nicht gefunden: {model_path}")
+                print(f"  ✗ Model nicht gefunden: {model_path}")
+        
+        # Settings Panel
+        settings_data = {}
+        if 'default_threads' in config:
+            settings_data['threads'] = config['default_threads']
+            print(f"  ✓ Threads: {config['default_threads']}")
+        if 'default_language' in config:
+            settings_data['language'] = config['default_language']
+            print(f"  ✓ Language: {config['default_language']}")
+        
+        if settings_data:
+            self.settings_panel.set_settings(settings_data)
+            self.log_info(f"Settings aus Initial-Config geladen: {settings_data}")
+        
+        # Output Panel - auto_open_transcript
+        if 'auto_open_transcript' in config:
+            auto_open = config['auto_open_transcript']
+            self.output_panel.set_auto_open(auto_open)
+            self.log_info(f"Auto-Open aus Initial-Config: {auto_open}")
+            print(f"  ✓ Auto-Open: {auto_open}")
+        
+        # UI Language
+        if 'ui_language' in config:
+            ui_lang = config['ui_language']
+            set_language(ui_lang)
+            print(f"  ✓ UI Language: {ui_lang}")
+        
+        # Theme
+        if 'preferred_theme' in config:
+            theme = config['preferred_theme']
+            self.apply_theme(theme)
+            print(f"  ✓ Theme: {theme}")
+        
+        print("=== Initial-Config erfolgreich geladen ===")
+        self.statusBar().showMessage("Willkommen! Wizard-Konfiguration geladen", 3000)
+    
+    def load_last_session(self):
+        """
+        Lädt die letzte Session inkl. aktivem Profil.
+        Wird bei jedem Start (außer erstem nach Wizard) aufgerufen.
+        """
+        last_session = self.history_manager.get_last_session()
+        
+        if not last_session:
+            self.log_info("Keine letzte Session gefunden")
+            return
+        
+        profile_name = last_session.get('profile_name')
+        session_data = last_session.get('data')
+        
+        if not session_data:
+            self.log_info("Session-Daten sind leer")
+            return
+        
+        self.log_info(f"Lade letzte Session (Profil: {profile_name or 'Keins'})")
+        print(f"\n=== Lade letzte Session ===")
+        print(f"Profil: {profile_name or 'Keins'}")
+        
+        # Wenn ein Profil aktiv war, versuche es zu laden
+        if profile_name and profile_name != '-- Aktuell (nicht gespeichert) --':
+            profile_data = self.profile_manager.get_profile(profile_name)
+            if profile_data:
+                self.log_info(f"Lade Profil: {profile_name}")
+                print(f"  ✓ Profil '{profile_name}' geladen")
+                
+                # Setze Profil in Combo
+                index = self.profile_combo.findText(profile_name)
+                if index >= 0:
+                    self.profile_combo.blockSignals(True)
+                    self.profile_combo.setCurrentIndex(index)
+                    self.profile_combo.blockSignals(False)
+                
+                # Lade Profil-Daten (analog zu on_profile_selected)
+                if 'settings' in profile_data:
+                    self.settings_panel.set_settings(profile_data['settings'])
+                if 'diarization' in profile_data:
+                    self.diarization_panel.set_settings(profile_data['diarization'])
+                if 'output' in profile_data:
+                    self.output_panel.set_settings(profile_data['output'])
+                
+                self.statusBar().showMessage(f"Profil '{profile_name}' wiederhergestellt", 3000)
+                return
+            else:
+                self.log_warning(f"Profil '{profile_name}' nicht gefunden")
+                print(f"  ✗ Profil nicht gefunden, lade Session-Daten")
+        
+        # Kein Profil oder nicht gefunden - lade Session-Daten direkt
+        print("  ✓ Lade Session-Daten")
+        
+        # Input-Datei (nur wenn existent)
+        if 'input_file' in session_data:
+            input_file = session_data['input_file']
+            if Path(input_file).exists():
+                self.input_panel.set_file_path(input_file)
+                print(f"    - Input: {Path(input_file).name}")
+        
+        # Model
+        if 'model' in session_data:
+            model_path = session_data['model']
+            if Path(model_path).exists():
+                self.model_panel.set_model_path(model_path)
+                print(f"    - Model: {Path(model_path).name}")
+        
+        # Settings
+        if 'settings' in session_data:
+            self.settings_panel.set_settings(session_data['settings'])
+            print(f"    - Settings: {session_data['settings'].get('threads')} threads")
+        
+        # Diarization
+        if 'diarization' in session_data:
+            self.diarization_panel.set_settings(session_data['diarization'])
+            print(f"    - Diarization: {'Ja' if session_data['diarization'].get('enabled') else 'Nein'}")
+        
+        # Output
+        if 'output' in session_data:
+            self.output_panel.set_settings(session_data['output'])
+            print(f"    - Output: {session_data['output'].get('format')}")
+        
+        print("=== Letzte Session erfolgreich geladen ===")
+        self.statusBar().showMessage("Letzte Session wiederhergestellt", 3000)
     
     def on_model_selected(self, model_path: str):
         """Wird aufgerufen wenn ein Modell ausgewählt wird."""
@@ -304,7 +482,7 @@ class MainWindow(QMainWindow):
     def setup_logging(self):
         """Richtet das Logging-System ein."""
         # Log-Verzeichnis erstellen
-        log_dir = Path.home() / ".vspeechflow" / "logs"
+        log_dir = Path.home() / "V-SpeechFlow" / "logs"
         log_dir.mkdir(parents=True, exist_ok=True)
         
         # Log-Datei mit Timestamp
@@ -404,6 +582,26 @@ class MainWindow(QMainWindow):
         
         settings_menu.addSeparator()
         
+        # Language Submenu
+        language_menu = QMenu("🌍 Sprache / Language", self)
+        settings_menu.addMenu(language_menu)
+        
+        # Deutsch
+        lang_de_action = QAction("🇩🇪 Deutsch", self)
+        lang_de_action.setCheckable(True)
+        lang_de_action.setChecked(get_translation_manager().get_current_language() == "de")
+        lang_de_action.triggered.connect(lambda: self.change_language("de"))
+        language_menu.addAction(lang_de_action)
+        
+        # English
+        lang_en_action = QAction("🇺🇸 English", self)
+        lang_en_action.setCheckable(True)
+        lang_en_action.setChecked(get_translation_manager().get_current_language() == "en")
+        lang_en_action.triggered.connect(lambda: self.change_language("en"))
+        language_menu.addAction(lang_en_action)
+        
+        settings_menu.addSeparator()
+        
         # Letzte Einstellungen laden
         load_last_settings_action = QAction("⏮️ Letzte Einstellungen laden", self)
         load_last_settings_action.triggered.connect(self.load_last_settings)
@@ -417,6 +615,13 @@ class MainWindow(QMainWindow):
         
         # Hilfe-Menü
         help_menu = menubar.addMenu("❓ Hilfe")
+        
+        # Tutorial/Onboarding
+        tutorial_action = QAction("🎓 Tutorial starten", self)
+        tutorial_action.triggered.connect(self.start_onboarding)
+        help_menu.addAction(tutorial_action)
+        
+        help_menu.addSeparator()
         
         about_action = QAction("ℹ️ Über V-SpeechFlow", self)
         about_action.triggered.connect(self.show_about)
@@ -518,32 +723,16 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "Fertig", "History wurde gelöscht.")
     
     def load_last_settings(self):
-        """Lädt die zuletzt verwendeten Einstellungen."""
-        last_settings = self.history_manager.get_last_settings()
-        
-        if not last_settings:
-            QMessageBox.information(
-                self,
-                "Keine History",
-                "Keine zuletzt verwendeten Einstellungen gefunden."
-            )
-            return
-        
-        # Settings in Panels laden
-        if 'settings' in last_settings:
-            self.settings_panel.set_settings(last_settings['settings'])
-        
-        if 'diarization' in last_settings:
-            self.diarization_panel.set_settings(last_settings['diarization'])
-        
-        if 'output' in last_settings:
-            self.output_panel.set_settings(last_settings['output'])
-        
-        self.log_info("Letzte Einstellungen geladen")
-        QMessageBox.information(self, "Geladen", "Letzte Einstellungen wurden geladen.")
+        """DEPRECATED: Verwende stattdessen load_last_session(). Bleibt zur Kompatibilität."""
+        self.load_last_session()
     
     def save_current_session(self):
-        """Speichert die aktuelle Session in der History."""
+        """Speichert die aktuelle Session in der History inkl. aktivem Profil."""
+        # Hole aktuelles Profil
+        current_profile = self.profile_combo.currentText()
+        if current_profile == "-- Aktuell (nicht gespeichert) --":
+            current_profile = None
+        
         session_data = {
             'input_file': self.input_panel.get_selected_file(),
             'model': self.model_panel.get_selected_model(),
@@ -552,17 +741,9 @@ class MainWindow(QMainWindow):
             'output': self.output_panel.get_settings(),
         }
         
-        # Settings speichern
-        settings_data = {
-            'settings': session_data['settings'],
-            'diarization': session_data['diarization'],
-            'output': session_data['output'],
-        }
-        self.history_manager.save_last_settings(settings_data)
-        
-        # Session speichern
-        self.history_manager.save_last_session(session_data)
-        self.log_info("Session in History gespeichert")
+        # Session speichern (mit Profil)
+        self.history_manager.save_last_session(session_data, current_profile)
+        self.log_info(f"Session in History gespeichert (Profil: {current_profile or 'Keins'})")
     
     def show_about(self):
         """Zeigt About-Dialog."""
@@ -1335,6 +1516,153 @@ class MainWindow(QMainWindow):
         index = self.profile_combo.findText(profile_name, Qt.MatchFlag.MatchContains)
         if index >= 0:
             self.profile_combo.setCurrentIndex(index)
+    
+    # ===== Wizard & Onboarding Integration =====
+    
+    def apply_wizard_settings(self, data: dict):
+        """
+        Wendet die Einstellungen aus dem Installation Wizard an.
+        
+        Args:
+            data: Dict mit Wizard-Daten (model, token, language, theme, etc.)
+        """
+        self.log_info("Applying wizard settings...")
+        
+        # Modell setzen wenn vorhanden
+        if data.get('default_model'):
+            model_path = data['default_model']
+            if Path(model_path).exists():
+                self.model_panel.set_model_path(model_path)
+                self.log_info(f"Model set from wizard: {model_path}")
+        
+        # HF Token setzen wenn vorhanden
+        if data.get('hf_token'):
+            self.diarization_panel.set_hf_token(data['hf_token'])
+            self.log_info("HF Token set from wizard")
+        
+        # Threads setzen
+        if data.get('default_threads'):
+            self.settings_panel.set_threads(data['default_threads'])
+            self.log_info(f"Threads set from wizard: {data['default_threads']}")
+        
+        # Sprache setzen (ohne Neustart beim ersten Wizard-Durchlauf)
+        if data.get('ui_language'):
+            language = data['ui_language']
+            set_language(language)
+            self.history_manager.save_user_preference('ui_language', language)
+            self.log_info(f"Language set from wizard: {language}")
+            # Keine MessageBox beim ersten Setup!
+        
+        # Theme setzen
+        if data.get('preferred_theme'):
+            theme = data['preferred_theme']
+            if theme == 'dark' and self.theme_manager.get_current_theme() != 'dark':
+                self.toggle_theme()
+            elif theme == 'light' and self.theme_manager.get_current_theme() != 'light':
+                self.toggle_theme()
+        
+        # User Preferences anwenden
+        if data.get('auto_open_transcript'):
+            self.output_panel.set_auto_open(True)
+        
+        self.log_info("Wizard settings applied successfully")
+    
+    def start_onboarding(self):
+        """Startet das Onboarding-Tutorial."""
+        self.log_info("Starting onboarding tutorial...")
+        # Als Instanzvariable speichern, damit es nicht vom GC entfernt wird
+        self.onboarding_manager = OnboardingManager(self)
+        self.onboarding_manager.start()
+    
+    def offer_onboarding(self):
+        """Bietet das Onboarding an (falls noch nicht absolviert)."""
+        reply = QMessageBox.question(
+            self,
+            "Tutorial verfügbar",
+            "Möchten Sie ein kurzes Tutorial durchlaufen?\n\n"
+            "Es erklärt die wichtigsten Funktionen von V-SpeechFlow.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            self.start_onboarding()
+        else:
+            # Als completed markieren damit nicht mehr gefragt wird
+            self.history_manager.mark_onboarding_completed()
+    
+    def change_language(self, language: str):
+        """
+        Ändert die UI-Sprache.
+        
+        Args:
+            language: "de" oder "en"
+        """
+        set_language(language)
+        self.history_manager.save_user_preference('ui_language', language)
+        
+        QMessageBox.information(
+            self,
+            "Sprache geändert / Language Changed",
+            "Die Sprache wurde geändert.\n"
+            "Bitte starten Sie die Anwendung neu um alle Änderungen zu sehen.\n\n"
+            "Language has been changed.\n"
+            "Please restart the application to see all changes."
+        )
+        
+        self.log_info(f"Language changed to: {language}")
+    
+    def check_model_updates(self):
+        """Prüft auf Model-Updates (wird beim Start aufgerufen)."""
+        model_path = self.model_panel.get_model_path()
+        
+        if not model_path or not Path(model_path).exists():
+            return
+        
+        # Prüfen ob User Update-Check aktiviert hat
+        check_updates = self.history_manager.get_user_preference('check_model_updates', True)
+        if not check_updates:
+            return
+        
+        from .model_utils import check_model_updates_with_cache
+        
+        # Im Background prüfen
+        def do_check():
+            result = check_model_updates_with_cache(model_path, force=False)
+            
+            if result and result.get('update_available'):
+                # Benachrichtigung in Main-Thread
+                QTimer.singleShot(0, lambda: self.show_update_notification(result))
+        
+        # In separatem Thread um UI nicht zu blockieren
+        import threading
+        thread = threading.Thread(target=do_check, daemon=True)
+        thread.start()
+    
+    def show_update_notification(self, update_info: dict):
+        """
+        Zeigt eine Benachrichtigung über verfügbares Model-Update.
+        
+        Args:
+            update_info: Dict mit Update-Informationen
+        """
+        model_name = update_info.get('model_name', 'Unknown')
+        local_size = update_info.get('local_size_mb', 0)
+        remote_size = update_info.get('remote_size_mb', 0)
+        
+        reply = QMessageBox.question(
+            self,
+            "Model-Update verfügbar",
+            f"Ein Update für das Modell '{model_name}' ist verfügbar.\n\n"
+            f"Lokale Version: {local_size} MB\n"
+            f"Neue Version: {remote_size} MB\n\n"
+            "Möchten Sie die Download-Seite öffnen?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            import webbrowser
+            url = update_info.get('download_url', 'https://huggingface.co/ggerganov/whisper.cpp')
+            webbrowser.open(url)
     
     def closeEvent(self, event):
         """Wird aufgerufen wenn das Fenster geschlossen wird."""
