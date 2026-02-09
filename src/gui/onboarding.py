@@ -455,8 +455,8 @@ class OnboardingManager:
     
     def next_step(self):
         """Geht zum nächsten Schritt."""
-        self.current_step_index += 1
-        if self.current_step_index < len(self.steps):
+        if self.current_step_index < len(self.steps) - 1:
+            self.current_step_index += 1
             self.show_step(self.current_step_index)
         else:
             self.finish_onboarding()
@@ -495,7 +495,7 @@ class OnboardingManager:
             self.dialog = None
         
         # Als abgeschlossen markieren
-        self.history_manager.mark_onboarding_completed()
+        self.history_manager.mark_onboarding_completed(complete=True)
         
         # Erfolgs-Message ohne Parent um Blocking zu vermeiden
         from PyQt6.QtWidgets import QMessageBox
