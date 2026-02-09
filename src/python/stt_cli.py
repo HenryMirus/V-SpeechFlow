@@ -570,7 +570,26 @@ Beispiele:
     
     # Temporäre Ausgabe-Datei für Segment-Parsing
     temp_transcript = None
-    if args.diarize and not args.output:
+    output_file_path = None
+    
+    # Wenn args.output angegeben ist, verarbeite es
+    if args.output:
+        output_path = Path(args.output)
+        
+        # Prüfe ob es ein Verzeichnis ist oder sein soll (kein Suffix oder existierendes Verzeichnis)
+        if output_path.is_dir() or (not output_path.suffix and not output_path.exists()):
+            # Es ist ein Verzeichnis - erstelle es und generiere Dateinamen
+            output_path.mkdir(parents=True, exist_ok=True)
+            # Generiere Dateinamen basierend auf Input-Datei
+            input_name = Path(args.file).stem if args.file else "recording"
+            output_file_path = output_path / f"{input_name}_transcript.txt"
+        else:
+            # Es ist ein Dateipfad - stelle sicher dass das Verzeichnis existiert
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_file_path = output_path
+    
+    # Bei Diarization immer temp file verwenden, um Segmente zu lesen
+    if args.diarize:
         temp_file = tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False)
         temp_transcript = Path(temp_file.name)
         temp_file.close()
@@ -582,7 +601,7 @@ Beispiele:
         num_threads=args.threads,
         show_segments=needs_segments,
         translate=args.translate,
-        output_file=temp_transcript or args.output
+        output_file=temp_transcript or output_file_path
     )
 
     # Bei Diarization: Segmente kombinieren
@@ -593,8 +612,8 @@ Beispiele:
         if temp_transcript:
             with open(temp_transcript, 'r') as f:
                 transcript_output = f.read()
-        elif args.output:
-            with open(args.output, 'r') as f:
+        elif output_file_path:
+            with open(output_file_path, 'r') as f:
                 transcript_output = f.read()
         else:
             transcript_output = result or ""
@@ -628,10 +647,10 @@ Beispiele:
             print(combined_output)
             
             # In Datei schreiben
-            if args.output:
-                with open(args.output, 'w') as f:
+            if output_file_path:
+                with open(output_file_path, 'w') as f:
                     f.write(combined_output + "\n")
-                print(f"\nTranscript with speakers saved to: {args.output}")
+                print(f"\nTranscript with speakers saved to: {output_file_path}")
         else:
             print("Warning: Could not parse transcript segments", file=sys.stderr)
         

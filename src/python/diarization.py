@@ -175,15 +175,27 @@ class SpeakerDiarizer:
             **diarization_params
         )
         
-        # Ergebnisse konvertieren
+        # Ergebnisse konvertieren - Handle alte und neue API
         segments = []
-        for turn, _, speaker in diarization.itertracks(yield_label=True):
-            segment = SpeakerSegment(
-                start=turn.start,
-                end=turn.end,
-                speaker=speaker
-            )
-            segments.append(segment)
+        
+        # Alte API: Direktes Annotation-Objekt mit itertracks
+        if hasattr(diarization, 'itertracks'):
+            for turn, _, speaker in diarization.itertracks(yield_label=True):
+                segment = SpeakerSegment(
+                    start=turn.start,
+                    end=turn.end,
+                    speaker=speaker
+                )
+                segments.append(segment)
+        # Neue API: DiarizeOutput mit .speaker_diarization Attribut
+        else:
+            for turn, _, speaker in diarization.speaker_diarization.itertracks(yield_label=True):
+                segment = SpeakerSegment(
+                    start=turn.start,
+                    end=turn.end,
+                    speaker=speaker
+                )
+                segments.append(segment)
         
         # Post-Processing für deutsche Sprache
         if self.optimize_for_german and segments:

@@ -1012,8 +1012,30 @@ class MainWindow(QMainWindow):
     
     def on_cli_error(self, text: str):
         """Wird aufgerufen wenn CLI stderr Output empfängt."""
-        # Errors in roter Farbe anzeigen
-        self.append_output(f"<span style='color: red;'>[ERROR] {text}</span>")
+        # Prüfe ob es sich um Debug-Informationen oder echte Fehler handelt
+        text_lower = text.lower()
+        
+        # Debug-Präfixe von Whisper/ggml (keine echten Fehler)
+        debug_prefixes = (
+            'whisper_', 'ggml_', 'metal_', 'backend_', 'compute_',
+            'encoder_', 'decoder_', 'kv_cache_', 'model_'
+        )
+        
+        # Echte Fehler-Keywords
+        error_keywords = ('error:', 'failed:', 'exception:', 'traceback', 'cannot', 'unable to')
+        
+        is_debug = any(text_lower.startswith(prefix) for prefix in debug_prefixes)
+        is_error = any(keyword in text_lower for keyword in error_keywords)
+        
+        if is_error and not is_debug:
+            # Echter Fehler -> rot
+            self.append_output(f"<span style='color: red;'>[ERROR] {text}</span>")
+        elif is_debug:
+            # Debug-Information -> gedämpfte Farbe (grau)
+            self.append_output(f"<span style='color: #888;'>{text}</span>")
+        else:
+            # Sonstige stderr-Ausgaben -> normal anzeigen
+            self.append_output(text)
     
     def on_cli_progress(self, percentage: float, current_timestamp: float):
         """Wird aufgerufen wenn Fortschritt gemeldet wird."""
