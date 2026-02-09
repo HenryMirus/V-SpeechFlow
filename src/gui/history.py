@@ -259,11 +259,11 @@ class HistoryManager:
         self.history_data["app_settings"]["last_wizard_version"] = version
         self._save_history()
     
-    def mark_onboarding_completed(self):
+    def mark_onboarding_completed(self, complete: bool = True):
         """Markiert das Onboarding als abgeschlossen."""
         if "app_settings" not in self.history_data:
             self.history_data["app_settings"] = {}
-        self.history_data["app_settings"]["onboarding_completed"] = True
+        self.history_data["app_settings"]["onboarding_completed"] = complete
         self._save_history()
     
     # NOTE: HF-Token wird NICHT mehr in History gespeichert!

@@ -92,8 +92,8 @@ class MainWindow(QMainWindow):
         main_layout = QHBoxLayout(central_widget)
         
         # Linke Seite: Input + Settings (Scroll für lange Form)
-        left_scroll = QScrollArea()
-        left_scroll.setWidgetResizable(True)
+        self.left_scroll = QScrollArea()
+        self.left_scroll.setWidgetResizable(True)
         left_panel = QWidget()
         left_layout = QVBoxLayout(left_panel)
         
@@ -168,8 +168,8 @@ class MainWindow(QMainWindow):
         left_layout.addWidget(self.output_panel)
         
         left_layout.addStretch()
-        left_scroll.setWidget(left_panel)
-        main_layout.addWidget(left_scroll, 2)  # 2/3 der Breite
+        self.left_scroll.setWidget(left_panel)
+        main_layout.addWidget(self.left_scroll, 2)  # 2/3 der Breite
         
         # Rechte Seite: Output Preview + Control Buttons
         right_panel = QWidget()
@@ -524,6 +524,13 @@ class MainWindow(QMainWindow):
         """Erstellt die Menu-Bar mit History und anderen Optionen."""
         menubar = self.menuBar()
         
+        # Menüleiste explizit sichtbar machen
+        menubar.setVisible(True)
+        
+        # Auf macOS: Menüleiste im Fenster anzeigen statt in System-Menüleiste
+        # (Optional: Auskommentieren um macOS-Standard zu nutzen)
+        menubar.setNativeMenuBar(False)
+        
         # Datei-Menü
         file_menu = menubar.addMenu("📁 Datei")
         
@@ -565,10 +572,15 @@ class MainWindow(QMainWindow):
         # Profile-Menü
         profile_menu = menubar.addMenu("📋 Profile")
         
-        # Favoriten Submenu
-        self.favorites_menu = QMenu("⭐ Favoriten", self)
+        # Favoriten & Standard-Profile Submenu
+        self.favorites_menu = QMenu("⭐ Favoriten & Standard", self)
         profile_menu.addMenu(self.favorites_menu)
         self.update_favorites_menu()
+
+        # Alle anderen Profile Submenu
+        self.all_profiles_menu = QMenu("📋 Alle Profile", self)
+        profile_menu.addMenu(self.all_profiles_menu)
+        self.update_all_profiles_menu()
         
         profile_menu.addSeparator()
         
@@ -1471,6 +1483,7 @@ class MainWindow(QMainWindow):
         # Speichere
         if self.profile_manager.save_profile(name, profile):
             self.refresh_profile_list()
+            self.update_profile_menus()
             
             # Wähle das neue Profil aus
             index = self.profile_combo.findData(name)
@@ -1523,6 +1536,7 @@ class MainWindow(QMainWindow):
         if reply == QMessageBox.StandardButton.Yes:
             if self.profile_manager.delete_profile(profile_name):
                 self.refresh_profile_list()
+                self.update_profile_menus()
                 self.profile_combo.setCurrentIndex(0)
                 QMessageBox.information(self, "Erfolg", f"Profil '{profile_name}' wurde gelöscht.")
                 self.log_info(f"Profil gelöscht: {profile_name}")
@@ -1552,6 +1566,7 @@ class MainWindow(QMainWindow):
         if ok and new_name:
             if self.profile_manager.duplicate_profile(source_name, new_name):
                 self.refresh_profile_list()
+                self.update_profile_menus()
                 # Wähle das neue Profil aus
                 index = self.profile_combo.findText(new_name, Qt.MatchFlag.MatchContains)
                 if index >= 0:
@@ -1610,6 +1625,7 @@ class MainWindow(QMainWindow):
         
         self.refresh_profile_list()
         self.update_favorites_menu()
+        self.update_all_profiles_menu()
     
     def export_profile(self):
         """Exportiert das aktuell ausgewählte Profil."""
@@ -1652,6 +1668,7 @@ class MainWindow(QMainWindow):
             
             if success:
                 self.refresh_profile_list()
+                self.update_profile_menus()
                 # Wähle das importierte Profil aus
                 index = self.profile_combo.findText(profile_name, Qt.MatchFlag.MatchContains)
                 if index >= 0:
@@ -1661,22 +1678,75 @@ class MainWindow(QMainWindow):
             else:
                 QMessageBox.critical(self, "Fehler", "Profil konnte nicht importiert werden.\nÜberprüfen Sie die Datei.")
     
+    def update_profile_menus(self):
+        """Aktualisiert alle Profil-Menüs (Favoriten+Standard und Alle)."""
+        self.update_favorites_menu()
+        self.update_all_profiles_menu()
+    
     def update_favorites_menu(self):
-        """Aktualisiert das Favoriten-Menü."""
+        """Aktualisiert das Favoriten & Standard-Profile Menü."""
         self.favorites_menu.clear()
         
+        # Hole Favoriten und Standard-Profile
         favorites = self.profile_manager.get_favorites()
+        all_profiles = self.profile_manager.get_profile_names()
+        standard_profiles = [name for name in all_profiles if self.profile_manager.is_default_profile(name)]
         
-        if not favorites:
-            no_fav_action = QAction("(Keine Favoriten)", self)
-            no_fav_action.setEnabled(False)
-            self.favorites_menu.addAction(no_fav_action)
+        # Kombiniere Favoriten und Standard (ohne Duplikate)
+        combined = list(favorites)
+        for std_name in standard_profiles:
+            if std_name not in combined:
+                combined.append(std_name)
+        
+        if not combined:
+            no_items_action = QAction("(Keine Favoriten oder Standard-Profile)", self)
+            no_items_action.setEnabled(False)
+            self.favorites_menu.addAction(no_items_action)
             return
         
-        for fav_name in favorites:
-            action = QAction(f"⭐ {fav_name}", self)
-            action.triggered.connect(lambda checked, name=fav_name: self.load_profile_by_name(name))
+        # Favoriten zuerst
+        if favorites:
+            for fav_name in favorites:
+                is_standard = self.profile_manager.is_default_profile(fav_name)
+                icon = "⭐🔧" if is_standard else "⭐"
+                action = QAction(f"{icon} {fav_name}", self)
+                action.triggered.connect(lambda checked, name=fav_name: self.load_profile_by_name(name))
+                self.favorites_menu.addAction(action)
+        
+        # Separator wenn sowohl Favoriten als auch Standard-Profile existieren
+        non_favorited_standards = [name for name in standard_profiles if name not in favorites]
+        if favorites and non_favorited_standards:
+            self.favorites_menu.addSeparator()
+        
+        # Standard-Profile (die nicht favorisiert sind)
+        for std_name in non_favorited_standards:
+            action = QAction(f"🔧 {std_name}", self)
+            action.triggered.connect(lambda checked, name=std_name: self.load_profile_by_name(name))
             self.favorites_menu.addAction(action)
+    
+    def update_all_profiles_menu(self):
+        """Aktualisiert das Alle-Profile Menü (ohne Favoriten und Standard)."""
+        self.all_profiles_menu.clear()
+        
+        all_profiles = self.profile_manager.get_profile_names()
+        favorites = self.profile_manager.get_favorites()
+        
+        # Filtere: Nur Profile die weder Favoriten noch Standard sind
+        other_profiles = [
+            name for name in all_profiles 
+            if name not in favorites and not self.profile_manager.is_default_profile(name)
+        ]
+        
+        if not other_profiles:
+            no_profiles_action = QAction("(Keine weiteren Profile)", self)
+            no_profiles_action.setEnabled(False)
+            self.all_profiles_menu.addAction(no_profiles_action)
+            return
+        
+        for profile_name in sorted(other_profiles):
+            action = QAction(f"📄 {profile_name}", self)
+            action.triggered.connect(lambda checked, name=profile_name: self.load_profile_by_name(name))
+            self.all_profiles_menu.addAction(action)
     
     def load_profile_by_name(self, profile_name: str):
         """Lädt ein Profil anhand des Namens."""
@@ -1738,6 +1808,7 @@ class MainWindow(QMainWindow):
         """Startet das Onboarding-Tutorial."""
         self.log_info("Starting onboarding tutorial...")
         # Als Instanzvariable speichern, damit es nicht vom GC entfernt wird
+        self.history_manager.mark_onboarding_completed(complete=False)  # Vorab als nicht abgeschlossen markieren
         self.onboarding_manager = OnboardingManager(self)
         self.onboarding_manager.start()
     
@@ -1857,4 +1928,3 @@ class MainWindow(QMainWindow):
         
         self.log_info("=== V-SpeechFlow GUI beendet ===")
         event.accept()
-
