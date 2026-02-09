@@ -391,14 +391,14 @@ class MainWindow(QMainWindow):
         # Input-Datei (nur wenn existent)
         if 'input_file' in session_data:
             input_file = session_data['input_file']
-            if Path(input_file).exists():
+            if input_file and Path(input_file).exists():
                 self.input_panel.set_file_path(input_file)
                 print(f"    - Input: {Path(input_file).name}")
         
         # Model
         if 'model' in session_data:
             model_path = session_data['model']
-            if Path(model_path).exists():
+            if model_path and Path(model_path).exists():
                 self.model_panel.set_model_path(model_path)
                 print(f"    - Model: {Path(model_path).name}")
         
