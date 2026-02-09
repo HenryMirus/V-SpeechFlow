@@ -120,6 +120,6 @@
 - [x] Batch-Fenster einblenden und testen
 - [x] Progressbar fixen
 - [x] ERROR im Output bei funktionierender Transkription entfernen/Fixen
-- [ ] Standard-System-Mikrofon automatisch auswählen
+- [x] Standard-System-Mikrofon automatisch auswählen
 - [ ] Bad Smells entfernen, Code schön machen
 - [ ] Exe erstellen, die automatisch alles buildet und die APP startet.

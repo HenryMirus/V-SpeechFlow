@@ -141,6 +141,7 @@ class MainWindow(QMainWindow):
         
         # Input Panel
         self.input_panel = InputPanel()
+        self.input_panel.set_history_manager(self.history_manager)
         self.input_panel.file_selected.connect(self.on_file_selected)
         self.input_panel.recording_started.connect(self.on_recording_started)
         self.input_panel.recording_stopped.connect(self.on_recording_stopped)

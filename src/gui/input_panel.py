@@ -24,7 +24,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QDragLeaveEvent, QIcon
 from .translations import tr
-from .utils import list_audio_devices
+from .utils import list_audio_devices, get_default_device
 from .macos_utils import get_hf_token_from_keychain, is_mac
 from .workers import RecordingWorker
 from .batch_panel import BatchPanel
@@ -48,6 +48,8 @@ class InputPanel(QWidget):
         self.is_recording = False
         self.recording_worker = None
         self.recorded_file = None
+        self.saved_device_id = None  # Für gespeichertes Gerät
+        self.history_manager = None  # Wird später gesetzt
         
         # Drag & Drop aktivieren auf dem ganzen Panel
         self.setAcceptDrops(True)
@@ -139,6 +141,7 @@ class InputPanel(QWidget):
         self.mic_combo = QComboBox()
         self.mic_combo.addItem("🔍 Mikrofone werden geladen...")
         self.mic_combo.setToolTip(tr("tooltip_input_live"))
+        self.mic_combo.currentIndexChanged.connect(self.on_microphone_changed)
         mic_layout.addWidget(self.mic_combo)
         
         btn_refresh = QPushButton("🔄 Aktualisieren")
@@ -245,10 +248,69 @@ class InputPanel(QWidget):
                     display_text = f"{device['name']} ({device['channels']}ch, {device['sample_rate']}Hz)"
                     self.mic_combo.addItem(display_text, device['id'])
                 
-                self.mic_combo.setCurrentIndex(0)
+                # Intelligente Geräte-Auswahl mit Prioritäten
+                self._select_best_device()
         except Exception as e:
             self.mic_combo.clear()
             self.mic_combo.addItem(f"❌ Fehler: {str(e)}")
+    
+    def _select_best_device(self):
+        """Wählt das beste verfügbare Gerät mit Prioritäten:
+        1. Gespeichertes Gerät (falls vorhanden)
+        2. Standard-Gerät des Systems
+        3. Erstes verfügbares Gerät
+        """
+        selected_index = 0  # Fallback
+        
+        # Priorität 1: Gespeichertes Gerät
+        if self.saved_device_id is not None:
+            for i in range(self.mic_combo.count()):
+                if self.mic_combo.itemData(i) == self.saved_device_id:
+                    selected_index = i
+                    print(f"✓ Gespeichertes Mikrofon gefunden: {self.mic_combo.itemText(i)}")
+                    self.mic_combo.setCurrentIndex(selected_index)
+                    return
+            print(f"⚠ Gespeichertes Mikrofon (ID: {self.saved_device_id}) nicht mehr verfügbar")
+        
+        # Priorität 2: Standard-Gerät vom System
+        default_device_id = get_default_device()
+        if default_device_id is not None:
+            for i in range(self.mic_combo.count()):
+                if self.mic_combo.itemData(i) == default_device_id:
+                    selected_index = i
+                    print(f"✓ Standard-Mikrofon vom System gefunden: {self.mic_combo.itemText(i)}")
+                    break
+        
+        # Priorität 3 (Fallback): Erstes Gerät
+        self.mic_combo.setCurrentIndex(selected_index)
+        if selected_index == 0 and default_device_id is None:
+            print(f"ℹ Verwende erstes verfügbares Mikrofon: {self.mic_combo.itemText(0)}")
+    
+    def set_history_manager(self, history_manager):
+        """Setzt den History-Manager für Speicherung der Mikrofon-Auswahl."""
+        self.history_manager = history_manager
+        
+        # Gespeichertes Mikrofon laden
+        self.saved_device_id = history_manager.get_user_preference('last_microphone_id')
+        if self.saved_device_id is not None:
+            print(f"ℹ Gespeicherte Mikrofon-ID geladen: {self.saved_device_id}")
+    
+    def save_current_microphone(self):
+        """Speichert das aktuell ausgewählte Mikrofon."""
+        if self.history_manager is None:
+            return
+        
+        device_id = self.mic_combo.currentData()
+        if device_id is not None and device_id >= 0:
+            self.history_manager.set_user_preference('last_microphone_id', device_id)
+            self.saved_device_id = device_id
+            device_name = self.mic_combo.currentText()
+            print(f"✓ Mikrofon gespeichert: {device_name} (ID: {device_id})")
+    
+    def on_microphone_changed(self, index: int):
+        """Wird aufgerufen wenn das Mikrofon geändert wird."""
+        # Speichere die neue Auswahl
+        self.save_current_microphone()
     
     def start_recording(self):
         """Startet die Live-Aufnahme."""
@@ -257,6 +319,9 @@ class InputPanel(QWidget):
         
         # Device-Index ermitteln
         device_idx = self.mic_combo.currentData()
+        
+        # Ausgewähltes Mikrofon speichern
+        self.save_current_microphone()
         if device_idx is None or device_idx < 0:
             QMessageBox.warning(
                 self,
