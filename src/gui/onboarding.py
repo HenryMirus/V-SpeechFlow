@@ -166,34 +166,8 @@ class OnboardingManager:
             "<p>Klicken Sie auf 'Weiter' um zu beginnen.</p>",
             None
         ))
-        
-        # Schritt 1: Input Panel - File Tab
-        self.steps.append(OnboardingStep(
-            "📁 Audio-Datei auswählen",
-            "<p>Im <b>Datei-Tab</b> können Sie eine Audio-Datei auswählen:</p>"
-            "<ul>"
-            "<li>Per Drag & Drop</li>"
-            "<li>Über den Durchsuchen-Button</li>"
-            "</ul>"
-            "<p>Unterstützte Formate: MP3, M4A, WAV, FLAC, OGG</p>",
-            self.main_window.input_panel if hasattr(self.main_window, 'input_panel') else None,
-            tab_index=0  # File Tab
-        ))
-        
-        # Schritt 2: Batch-Processing
-        self.steps.append(OnboardingStep(
-            "📦 Batch-Processing",
-            "<p>Im <b>Batch-Tab</b> können Sie mehrere Dateien gleichzeitig verarbeiten:</p>"
-            "<ul>"
-            "<li>Fügen Sie beliebig viele Dateien hinzu</li>"
-            "<li>Alle werden mit den aktuellen Einstellungen verarbeitet</li>"
-            "<li>Der Fortschritt wird für jede Datei angezeigt</li>"
-            "</ul>",
-            self.main_window.input_panel if hasattr(self.main_window, 'input_panel') else None,
-            tab_index=1  # Batch Tab
-        ))
-        
-        # Schritt 3: Live-Recording
+
+        # Schritt 1: Live-Recording
         self.steps.append(OnboardingStep(
             "🎤 Live-Aufnahme",
             "<p>Im <b>Live-Tab</b> können Sie direkt vom Mikrofon aufnehmen:</p>"
@@ -203,7 +177,33 @@ class OnboardingManager:
             "<li>Die Datei wird automatisch als Input verwendet</li>"
             "</ul>",
             self.main_window.input_panel if hasattr(self.main_window, 'input_panel') else None,
-            tab_index=2  # Live Tab
+            tab_index=0  # Live Tab
+        ))
+        
+        # Schritt 2: Input Panel - File Tab
+        self.steps.append(OnboardingStep(
+            "📁 Audio-Datei auswählen",
+            "<p>Im <b>Datei-Tab</b> können Sie eine Audio-Datei auswählen:</p>"
+            "<ul>"
+            "<li>Per Drag & Drop</li>"
+            "<li>Über den Durchsuchen-Button</li>"
+            "</ul>"
+            "<p>Unterstützte Formate: MP3, M4A, WAV, FLAC, OGG</p>",
+            self.main_window.input_panel if hasattr(self.main_window, 'input_panel') else None,
+            tab_index=1  # File Tab
+        ))
+        
+        # Schritt 3: Batch-Processing
+        self.steps.append(OnboardingStep(
+            "📦 Batch-Processing",
+            "<p>Im <b>Batch-Tab</b> können Sie mehrere Dateien gleichzeitig verarbeiten:</p>"
+            "<ul>"
+            "<li>Fügen Sie beliebig viele Dateien hinzu</li>"
+            "<li>Alle werden mit den aktuellen Einstellungen verarbeitet</li>"
+            "<li>Der Fortschritt wird für jede Datei angezeigt</li>"
+            "</ul>",
+            self.main_window.input_panel if hasattr(self.main_window, 'input_panel') else None,
+            tab_index=2  # Batch Tab
         ))
         
         # Schritt 4: Model Panel
