@@ -46,13 +46,13 @@ class BatchPanel(QWidget):
         # Titel
         title = QLabel("📦 Batch-Processing")
         title_font = QFont()
-        title_font.setPointSize(12)
+        title_font.setPointSize(13)
         title_font.setBold(True)
         title.setFont(title_font)
         layout.addWidget(title)
         
         info = QLabel("Verarbeite mehrere Audio-Dateien nacheinander")
-        info.setStyleSheet("color: gray; font-size: 10px;")
+        info.setStyleSheet("color: gray; font-size: 11px;")
         layout.addWidget(info)
         
         # Dateiliste Gruppe
@@ -90,7 +90,7 @@ class BatchPanel(QWidget):
         
         # Statistik
         self.stats_label = QLabel("Dateien: 0 | Gesamt: 0 MB")
-        self.stats_label.setStyleSheet("color: gray; font-size: 9px;")
+        self.stats_label.setStyleSheet("color: gray; font-size: 10px;")
         file_layout.addWidget(self.stats_label)
         
         file_group.setLayout(file_layout)
@@ -109,7 +109,7 @@ class BatchPanel(QWidget):
         options_layout.addWidget(self.create_subfolder_checkbox)
         
         hint = QLabel("💡 Alle Dateien werden mit aktuellen Einstellungen verarbeitet")
-        hint.setStyleSheet("color: gray; font-size: 9px;")
+        hint.setStyleSheet("color: gray; font-size: 10px;")
         hint.setWordWrap(True)
         options_layout.addWidget(hint)
         
@@ -121,7 +121,7 @@ class BatchPanel(QWidget):
         progress_layout = QVBoxLayout()
         
         self.current_file_label = QLabel("Bereit...")
-        self.current_file_label.setStyleSheet("font-size: 10px;")
+        self.current_file_label.setStyleSheet("font-size: 11px;")
         progress_layout.addWidget(self.current_file_label)
         
         self.batch_progress = QProgressBar()

@@ -21,6 +21,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
+from .translations import tr
 from .macos_utils import get_hf_token_from_keychain, is_mac
 
 
@@ -33,6 +34,17 @@ class DiarizationPanel(QWidget):
     def __init__(self):
         super().__init__()
         self.init_ui()
+        
+        # Auto-Load Token aus Keychain beim Start
+        self.auto_load_token_from_keychain()
+    
+    def auto_load_token_from_keychain(self):
+        """Versucht automatisch den Token aus der Keychain zu laden beim Start."""
+        if is_mac():
+            token = get_hf_token_from_keychain()
+            if token:
+                self.hf_token_input.setText(token)
+                # Stille Ladung - keine Meldung beim Auto-Load
     
     def init_ui(self):
         """Initialisiert die UI."""
@@ -41,7 +53,7 @@ class DiarizationPanel(QWidget):
         # Titel
         title = QLabel("👥 Speaker Diarization")
         title_font = QFont()
-        title_font.setPointSize(12)
+        title_font.setPointSize(13)
         title_font.setBold(True)
         title.setFont(title_font)
         layout.addWidget(title)
@@ -50,10 +62,11 @@ class DiarizationPanel(QWidget):
         self.enable_checkbox = QCheckBox("Speaker Diarization aktivieren")
         self.enable_checkbox.setChecked(False)
         self.enable_checkbox.stateChanged.connect(self.on_enable_changed)
+        self.enable_checkbox.setToolTip(tr("tooltip_diarization"))
         layout.addWidget(self.enable_checkbox)
         
         info = QLabel("💡 Erkennt und trennt verschiedene Sprecher im Audio")
-        info.setStyleSheet("color: gray; font-size: 10px;")
+        info.setStyleSheet("color: gray; font-size: 11px;")
         info.setWordWrap(True)
         layout.addWidget(info)
         
@@ -73,6 +86,7 @@ class DiarizationPanel(QWidget):
         self.exact_radio = QRadioButton("Exakte Sprecheranzahl (--num-speakers)")
         self.exact_radio.setChecked(True)
         self.exact_radio.toggled.connect(self.on_mode_changed)
+        self.exact_radio.setToolTip("Genaue Anzahl der Sprecher angeben (empfohlen wenn bekannt)")
         self.mode_group.addButton(self.exact_radio, 1)
         settings_layout.addWidget(self.exact_radio)
         
@@ -86,6 +100,7 @@ class DiarizationPanel(QWidget):
         self.num_speakers_spinbox.setMaximum(10)
         self.num_speakers_spinbox.setValue(2)
         self.num_speakers_spinbox.valueChanged.connect(self.emit_settings_changed)
+        self.num_speakers_spinbox.setToolTip("Genaue Anzahl der Sprecher im Audio")
         exact_layout.addWidget(self.num_speakers_spinbox)
         exact_layout.addStretch()
         
@@ -95,6 +110,7 @@ class DiarizationPanel(QWidget):
         
         self.auto_radio = QRadioButton("Auto-Erkennung mit Min/Max (--min-speakers, --max-speakers)")
         self.auto_radio.toggled.connect(self.on_mode_changed)
+        self.auto_radio.setToolTip("System erkennt Sprecher automatisch innerhalb der angegebenen Grenzen")
         self.mode_group.addButton(self.auto_radio, 2)
         settings_layout.addWidget(self.auto_radio)
         
@@ -105,26 +121,28 @@ class DiarizationPanel(QWidget):
         minmax_layout.addWidget(QLabel("Min:"))
         self.min_speakers_spinbox = QSpinBox()
         self.min_speakers_spinbox.setMinimum(1)
-        self.min_speakers_spinbox.setMaximum(10)
+        self.min_speakers_spinbox.setMaximum(50)
         self.min_speakers_spinbox.setValue(1)
         self.min_speakers_spinbox.setEnabled(False)
         self.min_speakers_spinbox.valueChanged.connect(self.on_min_changed)
+        self.min_speakers_spinbox.setToolTip("Minimale Anzahl an Sprechern")
         minmax_layout.addWidget(self.min_speakers_spinbox)
         
         minmax_layout.addWidget(QLabel("Max:"))
         self.max_speakers_spinbox = QSpinBox()
         self.max_speakers_spinbox.setMinimum(1)
-        self.max_speakers_spinbox.setMaximum(10)
+        self.max_speakers_spinbox.setMaximum(50)
         self.max_speakers_spinbox.setValue(5)
         self.max_speakers_spinbox.setEnabled(False)
         self.max_speakers_spinbox.valueChanged.connect(self.on_max_changed)
+        self.max_speakers_spinbox.setToolTip("Maximale Anzahl an Sprechern")
         minmax_layout.addWidget(self.max_speakers_spinbox)
         
         minmax_layout.addStretch()
         settings_layout.addLayout(minmax_layout)
         
         hint_minmax = QLabel("💡 System erkennt automatisch zwischen Min und Max Sprecher")
-        hint_minmax.setStyleSheet("color: gray; font-size: 9px; margin-left: 30px;")
+        hint_minmax.setStyleSheet("color: gray; font-size: 10px; margin-left: 30px;")
         hint_minmax.setWordWrap(True)
         settings_layout.addWidget(hint_minmax)
         
@@ -139,7 +157,7 @@ class DiarizationPanel(QWidget):
             "⚠️ Erforderlich für Speaker Diarization\n"
             "Token erstellen: https://huggingface.co/settings/tokens"
         )
-        token_hint.setStyleSheet("color: #f57c00; font-size: 9px;")
+        token_hint.setStyleSheet("color: #f57c00; font-size: 10px;")
         token_hint.setWordWrap(True)
         settings_layout.addWidget(token_hint)
         
@@ -148,23 +166,26 @@ class DiarizationPanel(QWidget):
         self.hf_token_input.setEchoMode(QLineEdit.EchoMode.Password)
         self.hf_token_input.setPlaceholderText("hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
         self.hf_token_input.textChanged.connect(self.on_token_changed)
+        self.hf_token_input.setToolTip(tr("tooltip_hf_token"))
         token_layout.addWidget(self.hf_token_input)
         
         btn_show_token = QPushButton("👁️")
         btn_show_token.setFixedWidth(40)
         btn_show_token.setCheckable(True)
         btn_show_token.toggled.connect(self.toggle_token_visibility)
+        btn_show_token.setToolTip("Token anzeigen/verbergen")
         token_layout.addWidget(btn_show_token)
         
         btn_load_keychain = QPushButton("🔑 Keychain")
         btn_load_keychain.clicked.connect(self.load_token_from_keychain)
+        btn_load_keychain.setToolTip("Token aus macOS Keychain laden")
         token_layout.addWidget(btn_load_keychain)
         
         settings_layout.addLayout(token_layout)
         
         # Token Status
         self.token_status = QLabel("⏳ Token nicht eingegeben")
-        self.token_status.setStyleSheet("color: gray; font-size: 9px;")
+        self.token_status.setStyleSheet("color: gray; font-size: 10px;")
         settings_layout.addWidget(self.token_status)
         
         # Keychain Hint (nur auf macOS)
@@ -173,7 +194,7 @@ class DiarizationPanel(QWidget):
                 "💡 Token speichern (Terminal):\n"
                 "security add-generic-password -s HF_V-Speechflow -a user -w \"hf_xxx\""
             )
-            keychain_hint.setStyleSheet("color: gray; font-size: 8px; background-color: #f5f5f5; padding: 5px; border-radius: 3px;")
+            keychain_hint.setStyleSheet("color: black; font-size: 9px; background-color: #f5f5f5; padding: 5px; border-radius: 3px;")
             keychain_hint.setWordWrap(True)
             settings_layout.addWidget(keychain_hint)
         
@@ -219,13 +240,13 @@ class DiarizationPanel(QWidget):
         
         if not token:
             self.token_status.setText("⏳ Token nicht eingegeben")
-            self.token_status.setStyleSheet("color: gray; font-size: 9px;")
+            self.token_status.setStyleSheet("color: gray; font-size: 10px;")
         elif self.validate_token_format(token):
             self.token_status.setText("✓ Token Format gültig")
-            self.token_status.setStyleSheet("color: green; font-size: 9px;")
+            self.token_status.setStyleSheet("color: green; font-size: 10px;")
         else:
             self.token_status.setText("⚠ Ungültiges Token Format (erwartet: hf_xxx)")
-            self.token_status.setStyleSheet("color: orange; font-size: 9px;")
+            self.token_status.setStyleSheet("color: orange; font-size: 10px;")
         
         self.emit_settings_changed()
     
@@ -258,20 +279,26 @@ class DiarizationPanel(QWidget):
             )
         else:
             if is_mac():
-                QMessageBox.information(
+                QMessageBox.warning(
                     self,
-                    "ℹ️ Token nicht gefunden",
-                    "Token nicht im Keychain gespeichert.\n\n"
-                    "Um den Token zu speichern, führen Sie in der Terminal aus:\n\n"
+                    "⚠️ Token nicht gefunden",
+                    "Der HuggingFace Token wurde nicht in der macOS Keychain gefunden.\n\n"
+                    "**Mögliche Ursachen:**\n"
+                    "• Kein Token wurde gespeichert\n"
+                    "• Der Token wurde unter einem anderen Service-Namen gespeichert\n"
+                    "• Fehler beim Zugriff auf die Keychain\n\n"
+                    "**Lösung:**\n"
+                    "Speichern Sie den Token mit folgendem Terminal-Befehl:\n\n"
                     "security add-generic-password -s HF_V-Speechflow -a user -w \"hf_xxxx\"\n\n"
-                    "Alternativ können Sie den Token oben manuell eingeben."
+                    "Ersetzen Sie dabei \"hf_xxxx\" mit Ihrem echten Token.\n\n"
+                    "Alternativ können Sie den Token auch manuell oben eingeben."
                 )
             else:
                 QMessageBox.information(
                     self,
-                    "ℹ️ macOS nur",
-                    "Keychain-Integration ist nur auf macOS verfügbar.\n"
-                    "Bitte geben Sie den Token manuell ein."
+                    "ℹ️ macOS erforderlich",
+                    "Die Keychain-Integration ist nur auf macOS verfügbar.\n\n"
+                    "Bitte geben Sie den Token manuell im Eingabefeld ein."
                 )
     
     def emit_settings_changed(self):
@@ -321,10 +348,31 @@ class DiarizationPanel(QWidget):
         if not settings['enabled']:
             return True, None  # Wenn deaktiviert, keine Validierung nötig
         
-        # Token prüfen
+        # Token prüfen  
         token = settings['hf_token']
         if not token:
-            return False, "HuggingFace Token ist erforderlich für Speaker Diarization."
+            # Versuche automatisch aus Keychain zu laden
+            if is_mac():
+                keychain_token = get_hf_token_from_keychain()
+                if keychain_token:
+                    # Auto-Load erfolgreich
+                    self.hf_token_input.setText(keychain_token)
+                    token = keychain_token
+                else:
+                    # Kein Token in Keychain
+                    return False, (
+                        "HuggingFace Token ist erforderlich für Speaker Diarization.\n\n"
+                        "Der Token wurde nicht in der macOS Keychain gefunden.\n"
+                        "Entweder ist keiner gespeichert oder er wurde falsch gespeichert.\n\n"
+                        "Bitte speichern Sie den Token mit:\n"
+                        "security add-generic-password -s HF_V-Speechflow -a user -w \"hf_xxx\"\n\n"
+                        "Oder geben Sie ihn manuell im Diarization-Panel ein."
+                    )
+            else:
+                return False, (
+                    "HuggingFace Token ist erforderlich für Speaker Diarization.\n\n"
+                    "Bitte geben Sie den Token im Diarization-Panel ein."
+                )
         
         if not self.validate_token_format(token):
             return False, "HuggingFace Token hat ungültiges Format (muss mit 'hf_' beginnen)."
@@ -368,3 +416,12 @@ class DiarizationPanel(QWidget):
         
         if 'hf_token' in settings and settings['hf_token']:
             self.hf_token_input.setText(settings['hf_token'])
+    
+    def set_hf_token(self, token: str):
+        """
+        Setzt den HuggingFace Token im Token-Eingabefeld.
+        
+        Args:
+            token: Der HuggingFace Token
+        """
+        self.hf_token_input.setText(token)
