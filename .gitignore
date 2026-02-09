@@ -57,3 +57,6 @@ models/*.bin
 tmp*
 *.tmp
 .~*
+# User data
+history/
+logs/
