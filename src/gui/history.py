@@ -17,10 +17,14 @@ class HistoryManager:
     
     def __init__(self):
         """Initialisiert den History-Manager."""
-        self.history_dir = Path.home() / ".vspeechflow" / "history"
+        # History im Projekt-Ordner speichern (neben models/)
+        # Pfad: V-Speech/history/history.json
+        project_root = Path(__file__).parent.parent.parent
+        self.history_dir = project_root / "history"
         self.history_dir.mkdir(parents=True, exist_ok=True)
         
         self.history_file = self.history_dir / "history.json"
+        print(f"History-Manager initialisiert. Datei: {self.history_file}")
         self.history_data = self._load_history()
     
     def _load_history(self) -> dict:
@@ -30,8 +34,14 @@ class HistoryManager:
                 with open(self.history_file, 'r', encoding='utf-8') as f:
                     return json.load(f)
             except (json.JSONDecodeError, IOError):
-                return self._create_empty_history()
-        return self._create_empty_history()
+                # Datei existiert aber ist korrupt - erstelle neu
+                history = self._create_empty_history()
+                self._save_history_internal(history)
+                return history
+        # Datei existiert nicht - erstelle sie
+        history = self._create_empty_history()
+        self._save_history_internal(history)
+        return history
     
     def _create_empty_history(self) -> dict:
         """Erstellt leere History-Struktur."""
@@ -39,17 +49,39 @@ class HistoryManager:
             "input_files": [],
             "models": [],
             "output_paths": [],
-            "last_settings": None,
-            "last_session": None,
+            "last_session": None,  # Enthält komplette Session inkl. Profil
+            "initial_config": None,  # Nur beim ersten Start nach Wizard
+            "app_settings": {
+                "first_run": True,
+                "wizard_completed": False,
+                "onboarding_completed": False,
+                "last_wizard_version": None,
+            },
+            "user_preferences": {
+                "ui_language": "de",
+                "preferred_theme": "light",
+                "show_tooltips": True,
+                "check_model_updates": True,
+            }
         }
     
     def _save_history(self):
         """Speichert History in Datei."""
+        self._save_history_internal(self.history_data)
+    
+    def _save_history_internal(self, data: dict):
+        """Interne Methode zum Speichern von History-Daten."""
+        import os
         try:
+            # Stelle sicher dass das Verzeichnis existiert
+            self.history_dir.mkdir(parents=True, exist_ok=True)
             with open(self.history_file, 'w', encoding='utf-8') as f:
-                json.dump(self.history_data, f, indent=2, ensure_ascii=False)
+                json.dump(data, f, indent=2, ensure_ascii=False)
+                f.flush()  # Puffer leeren
+                os.fsync(f.fileno())  # Sofort auf Festplatte schreiben
+            print(f"✓ History saved to: {self.history_file}")
         except IOError as e:
-            print(f"Warning: Could not save history: {e}")
+            print(f"✗ ERROR: Could not save history: {e}")
     
     def add_input_file(self, file_path: str):
         """Fügt Input-Datei zur History hinzu."""
@@ -127,21 +159,21 @@ class HistoryManager:
         
         self._save_history()
     
-    def save_last_settings(self, settings: dict):
-        """Speichert die letzten verwendeten Einstellungen."""
-        self.history_data["last_settings"] = {
-            "timestamp": datetime.now().isoformat(),
-            "settings": settings
-        }
-        self._save_history()
-    
-    def save_last_session(self, session_data: dict):
-        """Speichert komplette Session-Daten."""
+    def save_last_session(self, session_data: dict, profile_name: Optional[str] = None):
+        """
+        Speichert komplette Session-Daten inkl. aktivem Profil.
+        
+        Args:
+            session_data: Dictionary mit allen Session-Daten
+            profile_name: Name des aktiven Profils (None = kein Profil)
+        """
         self.history_data["last_session"] = {
             "timestamp": datetime.now().isoformat(),
+            "profile_name": profile_name,
             "data": session_data
         }
         self._save_history()
+        print(f"✓ Last-Session gespeichert (Profil: {profile_name or 'Keins'})")
     
     def get_recent_input_files(self, limit: int = 10) -> List[dict]:
         """Gibt zuletzt verwendete Input-Dateien zurück."""
@@ -160,18 +192,27 @@ class HistoryManager:
         directories = list(set([p["directory"] for p in paths]))
         return [d for d in directories if Path(d).exists()][:limit]
     
-    def get_last_settings(self) -> Optional[dict]:
-        """Gibt die zuletzt verwendeten Einstellungen zurück."""
-        last = self.history_data.get("last_settings")
-        if last:
-            return last.get("settings")
-        return None
-    
     def get_last_session(self) -> Optional[dict]:
-        """Gibt die letzte Session zurück."""
+        """
+        Gibt die letzte Session zurück.
+        
+        Returns:
+            Dictionary mit 'data' und 'profile_name'
+        """
+        return self.history_data.get("last_session")
+    
+    def get_last_session_data(self) -> Optional[dict]:
+        """Gibt nur die Session-Daten zurück (ohne Metadaten)."""
         last = self.history_data.get("last_session")
         if last:
             return last.get("data")
+        return None
+    
+    def get_last_session_profile(self) -> Optional[str]:
+        """Gibt den Namen des zuletzt aktiven Profils zurück."""
+        last = self.history_data.get("last_session")
+        if last:
+            return last.get("profile_name")
         return None
     
     def clear_history(self):
@@ -194,3 +235,116 @@ class HistoryManager:
             if e.get("path") != model_path
         ]
         self._save_history()
+    
+    # ===== App Settings Management =====
+    
+    def is_first_run(self) -> bool:
+        """Prüft ob die App zum ersten Mal gestartet wird."""
+        return self.history_data.get("app_settings", {}).get("first_run", True)
+    
+    def is_wizard_completed(self) -> bool:
+        """Prüft ob der Setup-Wizard abgeschlossen wurde."""
+        return self.history_data.get("app_settings", {}).get("wizard_completed", False)
+    
+    def is_onboarding_completed(self) -> bool:
+        """Prüft ob das Onboarding abgeschlossen wurde."""
+        return self.history_data.get("app_settings", {}).get("onboarding_completed", False)
+    
+    def mark_wizard_completed(self, version: str = "1.0"):
+        """Markiert den Setup-Wizard als abgeschlossen."""
+        if "app_settings" not in self.history_data:
+            self.history_data["app_settings"] = {}
+        self.history_data["app_settings"]["first_run"] = False
+        self.history_data["app_settings"]["wizard_completed"] = True
+        self.history_data["app_settings"]["last_wizard_version"] = version
+        self._save_history()
+    
+    def mark_onboarding_completed(self):
+        """Markiert das Onboarding als abgeschlossen."""
+        if "app_settings" not in self.history_data:
+            self.history_data["app_settings"] = {}
+        self.history_data["app_settings"]["onboarding_completed"] = True
+        self._save_history()
+    
+    # NOTE: HF-Token wird NICHT mehr in History gespeichert!
+    # Token wird ausschließlich in macOS Keychain verwaltet.
+    # Diese Methoden bleiben zur Kompatibilität, sollten aber nicht verwendet werden.
+    
+    def save_hf_token(self, token: str):
+        """
+        DEPRECATED: Token wird nicht mehr in History gespeichert.
+        Verwenden Sie stattdessen macos_utils.save_hf_token_to_keychain()
+        """
+        pass  # Absichtlich leer - Token nicht mehr in History speichern
+    
+    def get_hf_token(self) -> Optional[str]:
+        """
+        DEPRECATED: Token wird nicht mehr aus History gelesen.
+        Verwenden Sie stattdessen macos_utils.get_hf_token_from_keychain()
+        """
+        return None  # Absichtlich None - Token aus Keychain laden
+    
+    def save_app_setting(self, key: str, value):
+        """Speichert eine beliebige App-Einstellung."""
+        if "app_settings" not in self.history_data:
+            self.history_data["app_settings"] = {}
+        self.history_data["app_settings"][key] = value
+        self._save_history()
+    
+    def get_app_setting(self, key: str, default=None):
+        """Gibt eine App-Einstellung zurück."""
+        return self.history_data.get("app_settings", {}).get(key, default)
+    
+    def get_all_app_settings(self) -> dict:
+        """Gibt alle App-Einstellungen zurück."""
+        return self.history_data.get("app_settings", {})
+    
+    def save_user_preference(self, key: str, value):
+        """Speichert eine User-Preference."""
+        if "user_preferences" not in self.history_data:
+            self.history_data["user_preferences"] = {}
+        self.history_data["user_preferences"][key] = value
+        self._save_history()
+    
+    def get_user_preference(self, key: str, default=None):
+        """Gibt eine User-Preference zurück."""
+        return self.history_data.get("user_preferences", {}).get(key, default)
+    
+    def get_all_user_preferences(self) -> dict:
+        """Gibt alle User-Preferences zurück."""
+        return self.history_data.get("user_preferences", {})
+    
+    def save_initial_config(self, config: dict):
+        """
+        Speichert die Initial-Konfiguration aus dem Installation-Wizard.
+        Diese wird NUR beim ersten Start nach Wizard-Abschluss geladen.
+        
+        Args:
+            config: Dictionary mit allen Wizard-Einstellungen
+        """
+        self.history_data["initial_config"] = {
+            "timestamp": datetime.now().isoformat(),
+            "config": config,
+            "applied": False  # Flag ob bereits angewendet
+        }
+        self._save_history()
+        print(f"✓ Initial-Config gespeichert: {list(config.keys())}")
+    
+    def get_initial_config(self) -> Optional[dict]:
+        """
+        Gibt die Initial-Konfiguration zurück, wenn noch nicht angewendet.
+        
+        Returns:
+            Dictionary mit Wizard-Konfiguration oder None
+        """
+        initial = self.history_data.get("initial_config")
+        if initial and not initial.get("applied", False):
+            return initial.get("config")
+        return None
+    
+    def mark_initial_config_applied(self):
+        """Markiert initial_config als angewendet."""
+        if self.history_data.get("initial_config"):
+            self.history_data["initial_config"]["applied"] = True
+            self._save_history()
+            print("✓ Initial-Config als angewendet markiert")
