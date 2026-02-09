@@ -113,16 +113,12 @@
 
 ---
 
-## **📊 Implementierungs-Reihenfolge (empfohlen)**
-
-**Phase 1 (MVP – Single Audio):**  
-Grundgerüst → Input → Modell → Ausgabe → Start-Button → Resultat
-
-**Phase 2 (Live + Diarization):**  
-Live-Recording → Mikrofone → Diarization-UI → HF-Token
-
-**Phase 3 (Polish):**  
-Profile → History → Fehlerbehandlung → UX-Verbesserungen
-
-**Phase 4 (Optionales):**  
-Export-Formate → Batch → Visualisierung → Advanced Features
+## **Verbesserungen**
+- [ ] Intuitivere UI/UX (Ausklappbare Menüs, Hilfe-Fenster, Header, Hell-Dunkel-Theme schalter)
+- [ ] Onboarding visuell fixen = automatisches "scrollen" um dem Onboarding zu folgen
+- [ ] Onboarding Fenster schließen = überspringnen / rausklicken und scrollen in der app ermöglichen
+- [ ] Batch-Fenster einblenden und testen
+- [ ] Progressbar fixen
+- [ ] ERROR im Output bei funktionierender Transkription entfernen/Fixen
+- [ ] Bad Smells entfernen, Code schön machen
+- [ ] Exe erstellen, die automatisch alles buildet und die APP startet.
