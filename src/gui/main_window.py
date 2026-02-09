@@ -33,7 +33,7 @@ from .profiles import ProfileManager
 from .history import HistoryManager
 from .batch_panel import BatchPanel
 from .theme import ThemeManager
-from .time_estimator import TimeEstimator
+from .progress_tracker import ProgressTracker
 from .translations import tr, set_language, get_translation_manager
 from .onboarding import OnboardingManager
 import logging
@@ -66,7 +66,7 @@ class MainWindow(QMainWindow):
         self.theme_manager = ThemeManager()
         
         # Time-Estimator für Fortschritts-Berechnung
-        self.time_estimator = TimeEstimator()
+        self.progress_tracker = ProgressTracker()
         
         # Sprache laden und setzen
         saved_language = self.history_manager.get_user_preference('ui_language', 'de')
@@ -816,25 +816,12 @@ class MainWindow(QMainWindow):
         pass
     
     def update_progress_display(self):
-        """Aktualisiert die Progress-Anzeige regelmäßig (auch ohne neue Timestamps)."""
+        """Aktualisiert die Progress-Anzeige regelmäßig."""
         if not self.is_processing:
             return
         
-        # Time Estimator ohne neuen Timestamp aktualisieren (nutzt verstrichene Zeit)
-        self.time_estimator.update(None)
-        
-        # Aktuelle Werte holen
-        progress_pct = self.time_estimator.get_progress_percentage(None)
-        elapsed = self.time_estimator.get_elapsed_time_str()
-        remaining = self.time_estimator.get_remaining_time_str(None)
-        speed = self.time_estimator.get_speed_info()
-        
-        # UI aktualisieren (nur wenn sich was geändert hat)
-        if progress_pct > 0:
-            self.progress_bar.setValue(int(progress_pct))
-        
-        eta_text = f"🕒 Verstrichen: {elapsed} | Restzeit: ~{remaining} | Speed: {speed}"
-        self.eta_label.setText(eta_text)
+        # UI aktualisieren basierend auf aktuellem Status
+        self._update_progress_ui()
     
     def on_recording_started(self):
         """Wird aufgerufen wenn Live-Recording startet."""
@@ -908,14 +895,23 @@ class MainWindow(QMainWindow):
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
         self.eta_label.setVisible(True)
-        self.eta_label.setText("🕒 Berechne Restzeit...")
+        self.eta_label.setText("🕒 Startet...")
         self.statusBar().showMessage("⏳ Transkription läuft...")
         
         # === CLI-Worker starten ===
         self.log_info("CLI-Worker wird gestartet...")
         
-        # Time Estimator starten
-        self.time_estimator.start(input_file)
+        # Progress Tracker initialisieren
+        self.progress_tracker = ProgressTracker(has_diarization=diarization_settings.get('enabled', False))
+        self.progress_tracker.start()  # Timer starten
+        
+        # Versuche Audio-Länge zu ermitteln (für bessere Progress-Berechnung)
+        try:
+            duration = self.progress_tracker.get_audio_duration(input_file)
+            if duration:
+                self.progress_tracker.set_audio_duration(duration)
+        except:
+            pass  # Nicht kritisch wenn Audio-Länge nicht ermittelt werden kann
         
         self.cli_worker = CLIWorker(cli_args)
         self.cli_worker.output_received.connect(self.on_cli_output)
@@ -1009,11 +1005,19 @@ class MainWindow(QMainWindow):
     def on_cli_output(self, text: str):
         """Wird aufgerufen wenn CLI stdout Output empfängt."""
         self.append_output(text)
+        
+        # Parse die Ausgabe für Fortschritt
+        if self.progress_tracker.parse_output_line(text):
+            self._update_progress_ui()
     
     def on_cli_error(self, text: str):
         """Wird aufgerufen wenn CLI stderr Output empfängt."""
         # Prüfe ob es sich um Debug-Informationen oder echte Fehler handelt
         text_lower = text.lower()
+        
+        # Parse auch stderr für Fortschritt (manche Meldungen kommen über stderr)
+        if self.progress_tracker.parse_output_line(text):
+            self._update_progress_ui()
         
         # Debug-Präfixe von Whisper/ggml (keine echten Fehler)
         debug_prefixes = (
@@ -1038,27 +1042,30 @@ class MainWindow(QMainWindow):
             self.append_output(text)
     
     def on_cli_progress(self, percentage: float, current_timestamp: float):
-        """Wird aufgerufen wenn Fortschritt gemeldet wird."""
-        # Time Estimator aktualisieren
-        self.time_estimator.update(current_timestamp)
-        
-        # Progress berechnen
-        progress_pct = self.time_estimator.get_progress_percentage(current_timestamp)
-        
-        # Progress Bar aktualisieren
+        """Wird aufgerufen wenn Fortschritt gemeldet wird (Legacy - wird jetzt anders gehandhabt)."""
+        # Diese Methode wird noch vom Worker aufgerufen, aber wir nutzen jetzt parse_output_line()
+        # Für Kompatibilität behalten wir sie, aber die Logik ist jetzt im ProgressTracker
+        pass
+    
+    def _update_progress_ui(self):
+        """Aktualisiert die Progress-UI basierend auf dem ProgressTracker."""
+        # Progress Percentage
+        progress_pct = self.progress_tracker.get_progress_percentage()
         self.progress_bar.setValue(int(progress_pct))
         
-        # ETA und weitere Infos
-        elapsed = self.time_estimator.get_elapsed_time_str()
-        remaining = self.time_estimator.get_remaining_time_str(current_timestamp)
-        speed = self.time_estimator.get_speed_info()
+        # Status-Text
+        status_text = self.progress_tracker.get_status_text()
+        phase_name = self.progress_tracker.get_current_phase_name()
         
-        eta_text = f"🕒 Verstrichen: {elapsed} | Restzeit: ~{remaining} | Speed: {speed}"
-        self.eta_label.setText(eta_text)
+        # Elapsed time
+        elapsed = self.progress_tracker.get_elapsed_time_str()
+        
+        # ETA Label mit Phase, Timestamp-Info und elapsed time
+        self.eta_label.setText(f"⚙️ {status_text} | 🕒 Verstrichen: {elapsed}")
         
         # Status Bar
         self.statusBar().showMessage(
-            f"⏳ Transkription: {progress_pct:.1f}% | Restzeit: ~{remaining}"
+            f"⏳ {phase_name}: {progress_pct:.1f}%"
         )
     
     def on_cli_finished(self, return_code: int):
@@ -1073,8 +1080,8 @@ class MainWindow(QMainWindow):
         self.btn_start.setEnabled(True)
         self.btn_stop.setEnabled(False)
         
-        # Time Estimator zurücksetzen
-        self.time_estimator.reset()
+        # Progress Tracker zurücksetzen
+        self.progress_tracker.reset()
         
         if return_code == 0:
             # Erfolg
@@ -1166,8 +1173,8 @@ class MainWindow(QMainWindow):
             self.btn_stop.setEnabled(False)
             self.statusBar().showMessage("Transkription abgebrochen")
             
-            # Time Estimator zurücksetzen
-            self.time_estimator.reset()
+            # Progress Tracker zurücksetzen
+            self.progress_tracker.reset()
     
     def append_output(self, text: str):
         """

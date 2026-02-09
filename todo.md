@@ -118,7 +118,7 @@
 - [ ] Onboarding visuell fixen = automatisches "scrollen" um dem Onboarding zu folgen
 - [ ] Onboarding Fenster schließen = überspringnen / rausklicken und scrollen in der app ermöglichen
 - [ ] Batch-Fenster einblenden und testen
-- [ ] Progressbar fixen
-- [ ] ERROR im Output bei funktionierender Transkription entfernen/Fixen
+- [x] Progressbar fixen
+- [x] ERROR im Output bei funktionierender Transkription entfernen/Fixen
 - [ ] Bad Smells entfernen, Code schön machen
 - [ ] Exe erstellen, die automatisch alles buildet und die APP startet.

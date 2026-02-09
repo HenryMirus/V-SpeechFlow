@@ -60,17 +60,6 @@ class CLIWorker(QThread):
         
         return 0.0
     
-    def __init__(self, arguments: list):
-        """
-        Initialisiert den CLI-Worker.
-        
-        Args:
-            arguments: Liste der CLI-Argumente
-        """
-        super().__init__()
-        self.arguments = arguments
-        self.process = None
-    
     def run(self):
         """Führt die CLI mit den übergebenen Argumenten aus."""
         try:
