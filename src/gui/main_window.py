@@ -20,6 +20,7 @@ from PyQt6.QtWidgets import (
     QComboBox,
     QInputDialog,
     QMenu,
+    QSizePolicy,
 )
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QKeySequence, QShortcut, QAction
@@ -37,6 +38,7 @@ from .theme import ThemeManager
 from .progress_tracker import ProgressTracker
 from .translations import tr, set_language, get_translation_manager
 from .onboarding import OnboardingManager
+from .theme_toggle_switch import ThemeToggleSwitch
 import logging
 from datetime import datetime
 from pathlib import Path
@@ -47,7 +49,7 @@ class MainWindow(QMainWindow):
     
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("V-SpeechFlow - Speech to Text mit Speaker Diarization")
+        self.setWindowTitle(tr("app_title"))
         self.setGeometry(100, 100, 1400, 900)
         
         # Worker für CLI-Prozess
@@ -98,41 +100,42 @@ class MainWindow(QMainWindow):
         left_layout = QVBoxLayout(left_panel)
         
         # Titel
-        title = QLabel("V-SpeechFlow GUI")
-        title.setStyleSheet("font-size: 19px; font-weight: bold;")
-        left_layout.addWidget(title)
+        self.title_label = QLabel(tr("gui_title"))
+        self.title_label.setStyleSheet("font-size: 19px; font-weight: bold;")
+        left_layout.addWidget(self.title_label)
         
         # Profile-Auswahl
         profile_layout = QHBoxLayout()
-        profile_layout.addWidget(QLabel("📁 Profil:"))
+        self.profile_label = QLabel("📁 " + tr("profile_label"))
+        profile_layout.addWidget(self.profile_label)
         
         self.profile_combo = QComboBox()
-        self.profile_combo.addItem("-- Aktuell (nicht gespeichert) --")
+        self.profile_combo.addItem(tr("profile_current_unsaved"))
         self.refresh_profile_list()
         self.profile_combo.currentTextChanged.connect(self.on_profile_selected)
         profile_layout.addWidget(self.profile_combo)
         
         btn_save_profile = QPushButton("💾")
-        btn_save_profile.setToolTip("Aktuelles Profil speichern")
+        btn_save_profile.setToolTip(tr("profile_save_tooltip"))
         btn_save_profile.setFixedWidth(35)
         btn_save_profile.clicked.connect(self.save_current_profile)
         profile_layout.addWidget(btn_save_profile)
         
         btn_duplicate_profile = QPushButton("📋")
-        btn_duplicate_profile.setToolTip("Profil duplizieren")
+        btn_duplicate_profile.setToolTip(tr("profile_duplicate_tooltip"))
         btn_duplicate_profile.setFixedWidth(35)
         btn_duplicate_profile.clicked.connect(self.duplicate_selected_profile)
         profile_layout.addWidget(btn_duplicate_profile)
         
         btn_delete_profile = QPushButton("❌")
-        btn_delete_profile.setToolTip("Profil löschen")
+        btn_delete_profile.setToolTip(tr("profile_delete_tooltip"))
         btn_delete_profile.setFixedWidth(35)
         btn_delete_profile.clicked.connect(self.delete_selected_profile)
         profile_layout.addWidget(btn_delete_profile)
         
         # Mehr Options-Button (für Export/Import)
         btn_profile_menu = QPushButton("⋮")
-        btn_profile_menu.setToolTip("Weitere Optionen")
+        btn_profile_menu.setToolTip(tr("profile_menu_tooltip"))
         btn_profile_menu.setFixedWidth(35)
         btn_profile_menu.clicked.connect(self.show_profile_menu)
         profile_layout.addWidget(btn_profile_menu)
@@ -175,17 +178,14 @@ class MainWindow(QMainWindow):
         right_panel = QWidget()
         right_layout = QVBoxLayout(right_panel)
         
-        output_title = QLabel("📋 Output Preview / Live-Transkription")
-        output_title.setStyleSheet("font-weight: bold; font-size: 13px;")
-        right_layout.addWidget(output_title)
+        self.output_title = QLabel(tr("output_preview_title"))
+        self.output_title.setStyleSheet("font-weight: bold; font-size: 13px;")
+        right_layout.addWidget(self.output_title)
         
         # Output Text Area mit QTextEdit für Live-Output
         self.output_preview = QTextEdit()
         self.output_preview.setReadOnly(True)
-        self.output_preview.setPlaceholderText(
-            "Der Transkriptions-Output wird hier in Echtzeit angezeigt...\n\n"
-            "Starte eine Transkription um den Output zu sehen."
-        )
+        self.output_preview.setPlaceholderText(tr("output_preview_placeholder"))
         self.output_preview.setStyleSheet(
             "color: #333; background-color: #f5f5f5; padding: 10px; "
             "border-radius: 4px; font-family: 'Consolas', 'Monaco', monospace; font-size: 10pt;"
@@ -198,7 +198,7 @@ class MainWindow(QMainWindow):
         self.progress_bar.setTextVisible(True)
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
-        self.progress_bar.setFormat("%p% - Verarbeitung läuft...")
+        self.progress_bar.setFormat(tr("progress_format"))
         right_layout.addWidget(self.progress_bar)
         
         # ETA Label
@@ -211,16 +211,16 @@ class MainWindow(QMainWindow):
         # Control Buttons
         button_layout = QHBoxLayout()
         
-        self.btn_start = QPushButton("▶️ Start Transkription")
+        self.btn_start = QPushButton(tr("start_transcription_button"))
         self.btn_start.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 8px;")
-        self.btn_start.setToolTip("Start Transkription (Strg+Enter)")
+        self.btn_start.setToolTip(tr("start_transcription_tooltip"))
         self.btn_start.clicked.connect(self.start_transcription)
         button_layout.addWidget(self.btn_start)
         
-        self.btn_stop = QPushButton("⏹️ Stop")
+        self.btn_stop = QPushButton(tr("stop_button"))
         self.btn_stop.setStyleSheet("background-color: #f44336; color: white; font-weight: bold; padding: 8px;")
         self.btn_stop.setEnabled(False)
-        self.btn_stop.setToolTip("Transkription abbrechen (Escape)")
+        self.btn_stop.setToolTip(tr("stop_transcription_tooltip"))
         self.btn_stop.clicked.connect(self.stop_transcription)
         button_layout.addWidget(self.btn_stop)
         
@@ -229,7 +229,7 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(right_panel, 1)  # 1/3 der Breite
         
         # Status Bar
-        self.statusBar().showMessage("Bereit")
+        self.statusBar().showMessage(tr("status_ready"))
         
         # Tastenkürzel einrichten
         self.setup_shortcuts()
@@ -316,20 +316,20 @@ class MainWindow(QMainWindow):
             self.log_info(f"Auto-Open aus Initial-Config: {auto_open}")
             print(f"  ✓ Auto-Open: {auto_open}")
         
-        # UI Language
-        if 'ui_language' in config:
-            ui_lang = config['ui_language']
-            set_language(ui_lang)
-            print(f"  ✓ UI Language: {ui_lang}")
+        # UI Language wird NICHT aus initial_config geladen, da es bereits
+        # beim Start aus user_preferences geladen wurde und im Wizard direkt
+        # in user_preferences gespeichert wird
         
         # Theme
         if 'preferred_theme' in config:
             theme = config['preferred_theme']
             self.apply_theme(theme)
+            if hasattr(self, 'theme_toggle_switch'):
+                self.update_theme_switch()
             print(f"  ✓ Theme: {theme}")
         
         print("=== Initial-Config erfolgreich geladen ===")
-        self.statusBar().showMessage("Willkommen! Wizard-Konfiguration geladen", 3000)
+        self.statusBar().showMessage(tr("loading_initial_config"), 3000)
     
     def load_last_session(self):
         """
@@ -414,7 +414,7 @@ class MainWindow(QMainWindow):
             print(f"    - Output: {session_data['output'].get('format')}")
         
         print("=== Letzte Session erfolgreich geladen ===")
-        self.statusBar().showMessage("Letzte Session wiederhergestellt", 3000)
+        self.statusBar().showMessage(tr("loading_last_session"), 3000)
     
     def on_model_selected(self, model_path: str):
         """Wird aufgerufen wenn ein Modell ausgewählt wird."""
@@ -531,119 +531,167 @@ class MainWindow(QMainWindow):
         # (Optional: Auskommentieren um macOS-Standard zu nutzen)
         menubar.setNativeMenuBar(False)
         
+        # Theme-Toggle-Switch (wird am Ende der Menubar hinzugefügt)
+        self.theme_toggle_switch = ThemeToggleSwitch()
+        self.theme_toggle_switch.clicked = self.toggle_theme
+        self.update_theme_switch()
+        
         # Datei-Menü
-        file_menu = menubar.addMenu("📁 Datei")
+        self.file_menu = menubar.addMenu("📁 " + tr("menu_file"))
         
         # Recent Files Submenu
-        self.recent_files_menu = QMenu("🕒 Zuletzt verwendet", self)
-        file_menu.addMenu(self.recent_files_menu)
+        self.recent_files_menu = QMenu("🕒 " + tr("menu_recent_files"), self)
+        self.file_menu.addMenu(self.recent_files_menu)
         self.update_recent_files_menu()
         
-        file_menu.addSeparator()
+        self.file_menu.addSeparator()
         
         # Recent Models Submenu
-        self.recent_models_menu = QMenu("🤖 Letzte Modelle", self)
-        file_menu.addMenu(self.recent_models_menu)
+        self.recent_models_menu = QMenu("🤖 " + tr("menu_recent_models"), self)
+        self.file_menu.addMenu(self.recent_models_menu)
         self.update_recent_models_menu()
         
-        file_menu.addSeparator()
+        self.file_menu.addSeparator()
         
         # Batch-Processing
-        batch_action = QAction("📦 Batch-Processing", self)
+        batch_action = QAction("📦 " + tr("menu_batch"), self)
         batch_action.setShortcut(QKeySequence("Ctrl+B"))
         batch_action.triggered.connect(self.open_batch_window)
-        file_menu.addAction(batch_action)
+        self.file_menu.addAction(batch_action)
         
-        file_menu.addSeparator()
+        self.file_menu.addSeparator()
         
         # History löschen
-        clear_history_action = QAction("🗑️ History löschen", self)
+        clear_history_action = QAction("🗑️ " + tr("menu_clear_history"), self)
         clear_history_action.triggered.connect(self.clear_history)
-        file_menu.addAction(clear_history_action)
+        self.file_menu.addAction(clear_history_action)
         
-        file_menu.addSeparator()
+        self.file_menu.addSeparator()
         
         # Beenden
-        quit_action = QAction("❌ Beenden", self)
+        quit_action = QAction("❌ " + tr("menu_quit"), self)
         quit_action.setShortcut(QKeySequence("Ctrl+Q"))
         quit_action.triggered.connect(self.close)
-        file_menu.addAction(quit_action)
+        self.file_menu.addAction(quit_action)
         
         # Profile-Menü
-        profile_menu = menubar.addMenu("📋 Profile")
+        self.profile_menu = menubar.addMenu("📋 " + tr("menu_profiles_title"))
         
         # Favoriten & Standard-Profile Submenu
-        self.favorites_menu = QMenu("⭐ Favoriten & Standard", self)
-        profile_menu.addMenu(self.favorites_menu)
+        self.favorites_menu = QMenu("⭐ " + tr("menu_profiles_favorites"), self)
+        self.profile_menu.addMenu(self.favorites_menu)
         self.update_favorites_menu()
 
         # Alle anderen Profile Submenu
-        self.all_profiles_menu = QMenu("📋 Alle Profile", self)
-        profile_menu.addMenu(self.all_profiles_menu)
+        self.all_profiles_menu = QMenu("📋 " + tr("menu_profiles_all"), self)
+        self.profile_menu.addMenu(self.all_profiles_menu)
         self.update_all_profiles_menu()
         
-        profile_menu.addSeparator()
+        self.profile_menu.addSeparator()
         
         # Export Profil
-        export_profile_action = QAction("📤 Profil exportieren...", self)
+        export_profile_action = QAction("📤 " + tr("menu_profiles_export"), self)
         export_profile_action.triggered.connect(self.export_profile)
-        profile_menu.addAction(export_profile_action)
+        self.profile_menu.addAction(export_profile_action)
         
         # Import Profil
-        import_profile_action = QAction("📥 Profil importieren...", self)
+        import_profile_action = QAction("📥 " + tr("menu_profiles_import"), self)
         import_profile_action.triggered.connect(self.import_profile)
-        profile_menu.addAction(import_profile_action)
+        self.profile_menu.addAction(import_profile_action)
         
-        # Einstellungen-Menü
-        settings_menu = menubar.addMenu("⚙️ Einstellungen")
+        # Sprach-Dropdown (wird als Corner Widget hinzugefügt)
+        self.language_combo = QComboBox()
+        self.language_combo.addItem("🇩🇪", "de")  # userData = language code
+        self.language_combo.addItem("🇺🇸", "en")
+        self.language_combo.setToolTip(tr("menu_language"))
+        self.language_combo.setFixedWidth(70)
+        self.language_combo.setFixedHeight(32)
+        self.language_combo.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.language_combo.setStyleSheet("""
+            QComboBox {
+                border: 1px solid rgba(150, 150, 150, 0.3);
+                border-radius: 6px;
+                padding: 4px 10px;
+                background: rgba(255, 255, 255, 0.05);
+                font-size: 20px;
+                color: inherit;
+            }
+            QComboBox:hover {
+                background: rgba(255, 255, 255, 0.1);
+                border: 1px solid rgba(150, 150, 150, 0.5);
+            }
+            QComboBox:focus {
+                border: 1px solid rgba(100, 150, 255, 0.6);
+                outline: none;
+            }
+            QComboBox::drop-down {
+                border: none;
+                width: 24px;
+                subcontrol-origin: padding;
+                subcontrol-position: center right;
+                padding-right: 4px;
+            }
+            QComboBox::down-arrow {
+                image: none;
+                border: none;
+            }
+            QComboBox QAbstractItemView {
+                border: 1px solid rgba(150, 150, 150, 0.3);
+                border-radius: 6px;
+                padding: 4px;
+                background-color: rgba(255, 255, 255, 0.95);
+                selection-background-color: rgba(100, 150, 255, 0.2);
+                selection-color: inherit;
+                font-size: 18px;
+                outline: none;
+            }
+            QComboBox QAbstractItemView::item {
+                padding: 8px 12px;
+                border-radius: 4px;
+                min-height: 24px;
+            }
+            QComboBox QAbstractItemView::item:hover {
+                background-color: rgba(100, 150, 255, 0.15);
+            }
+            QComboBox QAbstractItemView::item:selected {
+                background-color: rgba(100, 150, 255, 0.25);
+            }
+        """)
         
-        # Theme Toggle
-        self.theme_action = QAction("🌙 Dark Mode", self)
-        self.theme_action.setCheckable(True)
-        self.theme_action.setChecked(self.theme_manager.get_current_theme() == 'dark')
-        self.theme_action.triggered.connect(self.toggle_theme)
-        settings_menu.addAction(self.theme_action)
+        # Aktuelle Sprache auswählen
+        current_language = get_translation_manager().get_current_language()
+        index = self.language_combo.findData(current_language)
+        if index >= 0:
+            self.language_combo.setCurrentIndex(index)
         
-        settings_menu.addSeparator()
-        
-        # Language Submenu
-        language_menu = QMenu("🌍 Sprache / Language", self)
-        settings_menu.addMenu(language_menu)
-        
-        # Deutsch
-        lang_de_action = QAction("🇩🇪 Deutsch", self)
-        lang_de_action.setCheckable(True)
-        lang_de_action.setChecked(get_translation_manager().get_current_language() == "de")
-        lang_de_action.triggered.connect(lambda: self.change_language("de"))
-        language_menu.addAction(lang_de_action)
-        
-        # English
-        lang_en_action = QAction("🇺🇸 English", self)
-        lang_en_action.setCheckable(True)
-        lang_en_action.setChecked(get_translation_manager().get_current_language() == "en")
-        lang_en_action.triggered.connect(lambda: self.change_language("en"))
-        language_menu.addAction(lang_en_action)
-        
-        settings_menu.addSeparator()
-        
-        # Letzte Einstellungen laden
-        load_last_settings_action = QAction("⏮️ Letzte Einstellungen laden", self)
-        load_last_settings_action.triggered.connect(self.load_last_settings)
-        settings_menu.addAction(load_last_settings_action)
+        # Signal verbinden
+        self.language_combo.currentIndexChanged.connect(self.on_language_combo_changed)
         
         # Hilfe-Menü
-        help_menu = menubar.addMenu("❓ Hilfe")
+        self.help_menu = menubar.addMenu("❓ " + tr("menu_help"))
         
         # Tutorial/Onboarding
-        tutorial_action = QAction("🎓 Tutorial starten", self)
+        tutorial_action = QAction("🎓 " + tr("menu_start_onboarding"), self)
         tutorial_action.triggered.connect(self.start_onboarding)
-        help_menu.addAction(tutorial_action)
+        self.help_menu.addAction(tutorial_action)
         
-        help_menu.addSeparator()
+        self.help_menu.addSeparator()
         
-        about_action = QAction("ℹ️ Über V-SpeechFlow", self)
+        about_action = QAction("ℹ️ " + tr("menu_about"), self)
         about_action.triggered.connect(self.show_about)
-        help_menu.addAction(about_action)
+        self.help_menu.addAction(about_action)
+        
+        # Corner Widget mit Sprach-Dropdown und Theme-Toggle-Switch
+        corner_container = QWidget()
+        corner_container.setContentsMargins(0, 0, 15, 0)  # 15px Abstand vom rechten Rand
+        corner_container.setStyleSheet("background: transparent;")  # Transparenter Hintergrund
+        corner_layout = QHBoxLayout(corner_container)
+        corner_layout.setContentsMargins(0, 0, 0, 0)
+        corner_layout.setSpacing(12)  # 12px Abstand zwischen Sprache und Theme
+        corner_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)  # Vertikale Zentrierung
+        corner_layout.addWidget(self.language_combo)
+        corner_layout.addWidget(self.theme_toggle_switch)
+        menubar.setCornerWidget(corner_container, Qt.Corner.TopRightCorner)
         
         self.log_info("Menu-Bar erstellt")
     
@@ -654,7 +702,7 @@ class MainWindow(QMainWindow):
         recent_files = self.history_manager.get_recent_input_files(limit=10)
         
         if not recent_files:
-            no_files_action = QAction("(Keine zuletzt verwendeten Dateien)", self)
+            no_files_action = QAction(tr("menu_no_recent_files"), self)
             no_files_action.setEnabled(False)
             self.recent_files_menu.addAction(no_files_action)
             return
@@ -676,7 +724,7 @@ class MainWindow(QMainWindow):
         recent_models = self.history_manager.get_recent_models(limit=5)
         
         if not recent_models:
-            no_models_action = QAction("(Keine zuletzt verwendeten Modelle)", self)
+            no_models_action = QAction(tr("menu_no_recent_models"), self)
             no_models_action.setEnabled(False)
             self.recent_models_menu.addAction(no_models_action)
             return
@@ -699,8 +747,8 @@ class MainWindow(QMainWindow):
         else:
             QMessageBox.warning(
                 self,
-                "Datei nicht gefunden",
-                f"Die Datei existiert nicht mehr:\n{file_path}"
+                tr('main_file_not_found_title'),
+                f"{tr('main_file_not_exist')}\n{file_path}"
             )
             self.history_manager.remove_input_file(file_path)
             self.update_recent_files_menu()
@@ -713,8 +761,8 @@ class MainWindow(QMainWindow):
         else:
             QMessageBox.warning(
                 self,
-                "Modell nicht gefunden",
-                f"Das Modell existiert nicht mehr:\n{model_path}"
+                tr('main_model_not_found_title'),
+                f"{tr('main_model_not_exist')}\n{model_path}"
             )
             self.history_manager.remove_model(model_path)
             self.update_recent_models_menu()
@@ -723,12 +771,8 @@ class MainWindow(QMainWindow):
         """Löscht die komplette History."""
         reply = QMessageBox.question(
             self,
-            "History löschen?",
-            "Möchten Sie wirklich die komplette History löschen?\\n\\n"
-            "Dies beinhaltet:\\n"
-            "• Zuletzt verwendete Dateien\\n"
-            "• Zuletzt verwendete Modelle\\n"
-            "• Letzte Einstellungen",
+            tr('main_clear_history_title'),
+            tr('main_clear_history_msg'),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No
         )
@@ -738,7 +782,7 @@ class MainWindow(QMainWindow):
             self.update_recent_files_menu()
             self.update_recent_models_menu()
             self.log_info("History gelöscht")
-            QMessageBox.information(self, "Fertig", "History wurde gelöscht.")
+            QMessageBox.information(self, tr('main_done'), tr('main_history_cleared'))
     
     def load_last_settings(self):
         """DEPRECATED: Verwende stattdessen load_last_session(). Bleibt zur Kompatibilität."""
@@ -790,13 +834,22 @@ class MainWindow(QMainWindow):
         self.apply_theme(new_theme)
         self.theme_manager.save_theme_preference(new_theme)
         
-        # Update Menu-Text
-        if new_theme == 'dark':
-            self.theme_action.setText("☀️ Light Mode")
-        else:
-            self.theme_action.setText("🌙 Dark Mode")
+        # Update Theme-Switch
+        self.update_theme_switch()
         
         self.log_info(f"Theme gewechselt zu: {new_theme}")
+    
+    def update_theme_switch(self):
+        """Aktualisiert den Theme-Toggle-Switch basierend auf dem aktuellen Theme."""
+        current_theme = self.theme_manager.get_current_theme()
+        is_dark = (current_theme == 'dark')
+        self.theme_toggle_switch.set_dark_mode(is_dark, animate=True)
+        
+        # Tooltip setzen
+        if is_dark:
+            self.theme_toggle_switch.setToolTip("Zu Light Mode wechseln (☀️)")
+        else:
+            self.theme_toggle_switch.setToolTip("Zu Dark Mode wechseln (🌙)")
     
     def apply_theme(self, theme: str):
         """Wendet das gewählte Theme an."""
@@ -850,7 +903,7 @@ class MainWindow(QMainWindow):
         
         if self.is_processing:
             self.log_warning("Transkription bereits aktiv, Abbruch")
-            QMessageBox.warning(self, "Bereits aktiv", "Eine Transkription läuft bereits.")
+            QMessageBox.warning(self, tr('main_already_active_title'), tr('main_already_active_msg'))
             return
         
         # Prüfen ob Batch-Modus aktiv ist
@@ -888,8 +941,8 @@ class MainWindow(QMainWindow):
             self.log_error(f"Validierungsfehler: {len(validation_errors)} Fehler gefunden")
             for error in validation_errors:
                 self.log_error(f"  - {error}")
-            error_message = "Bitte beheben Sie folgende Fehler:\n\n" + "\n".join(validation_errors)
-            QMessageBox.critical(self, "Validierungsfehler", error_message)
+            error_message = f"{tr('main_validation_fix_errors')}\n\n" + "\n".join(validation_errors)
+            QMessageBox.critical(self, tr('main_validation_error_title'), error_message)
             return
         
         # === CLI-Argumente zusammenstellen ===
@@ -898,7 +951,7 @@ class MainWindow(QMainWindow):
             self.log_info(f"CLI-Argumente: {' '.join(cli_args)}")
         except Exception as e:
             self.log_error(f"Fehler beim Erstellen der CLI-Argumente: {str(e)}")
-            QMessageBox.critical(self, "Fehler", f"Fehler beim Erstellen der CLI-Argumente:\n{str(e)}")
+            QMessageBox.critical(self, tr('main_error'), f"{tr('main_cli_error')}\n{str(e)}")
             return
         
         # === UI vorbereiten ===
@@ -1126,8 +1179,8 @@ class MainWindow(QMainWindow):
             
             QMessageBox.information(
                 self,
-                "Fertig!",
-                f"Transkription erfolgreich abgeschlossen!\n\nDatei gespeichert unter:\n{output_path}"
+                tr('main_done'),
+                f"{tr('main_transcription_success')}\n\n{tr('main_file_saved_at')}\n{output_path}"
             )
         else:
             # Fehler
@@ -1139,9 +1192,9 @@ class MainWindow(QMainWindow):
             
             QMessageBox.critical(
                 self,
-                "Fehler",
-                f"Transkription fehlgeschlagen mit Exit Code {return_code}.\n\n"
-                "Bitte prüfen Sie die Fehlerausgabe im Output-Fenster."
+                tr('main_error'),
+                f"{tr('main_transcription_failed', code=return_code)}\n\n"
+                f"{tr('main_check_output')}"
             )
         
         # Worker cleanup
@@ -1162,8 +1215,8 @@ class MainWindow(QMainWindow):
         
         reply = QMessageBox.question(
             self,
-            "Transkription abbrechen?",
-            "Möchten Sie die laufende Transkription wirklich abbrechen?",
+            tr('main_abort_transcription_title'),
+            tr('main_abort_transcription_msg'),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No
         )
@@ -1205,13 +1258,13 @@ class MainWindow(QMainWindow):
         # Dateien holen
         files = self.input_panel.get_batch_files()
         if not files:
-            QMessageBox.warning(self, "Keine Dateien", "Bitte fügen Sie mindestens eine Datei zum Batch hinzu.")
+            QMessageBox.warning(self, tr('main_no_files_title'), tr('main_no_batch_files_msg'))
             return
         
         # Modell validieren
         model_path = self.model_panel.get_selected_model()
         if not model_path:
-            QMessageBox.warning(self, "Kein Modell", "Bitte wählen Sie ein Modell aus.")
+            QMessageBox.warning(self, tr('main_no_model_title'), tr('main_no_model_msg'))
             return
         
         # CLI-Argumente vorbereiten (ohne Input-Datei)
@@ -1223,7 +1276,7 @@ class MainWindow(QMainWindow):
                 cli_args.pop(input_index + 1)
                 cli_args.pop(input_index)
         except Exception as e:
-            QMessageBox.critical(self, "Fehler", f"Fehler beim Erstellen der CLI-Argumente:\n{str(e)}")
+            QMessageBox.critical(self, tr('main_error'), f"{tr('main_cli_error')}\n{str(e)}")
             return
         
         # Batch-Optionen holen
@@ -1263,8 +1316,8 @@ class MainWindow(QMainWindow):
         
         reply = QMessageBox.question(
             self,
-            "Batch abbrechen?",
-            "Möchten Sie das Batch-Processing wirklich abbrechen?",
+            tr('main_abort_batch_title'),
+            tr('main_abort_batch_msg'),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No
         )
@@ -1369,7 +1422,7 @@ class MainWindow(QMainWindow):
         
         path = Path(file_path)
         if not path.exists():
-            QMessageBox.warning(self, "Datei nicht gefunden", f"Die Datei {file_path} wurde nicht gefunden.")
+            QMessageBox.warning(self, tr('main_file_not_found_title'), f"{tr('main_file_not_found_msg')} {file_path}")
             return
         
         try:
@@ -1380,7 +1433,7 @@ class MainWindow(QMainWindow):
             else:
                 os.system(f'xdg-open "{file_path}"')
         except Exception as e:
-            QMessageBox.warning(self, "Fehler", f"Konnte Datei nicht öffnen:\n{str(e)}")
+            QMessageBox.warning(self, tr('main_error'), f"{tr('main_file_open_error')}\n{str(e)}")
     
     def refresh_profile_list(self):
         """Aktualisiert die Profil-Liste in der ComboBox."""
@@ -1466,9 +1519,8 @@ class MainWindow(QMainWindow):
         if self.profile_manager.is_default_profile(name):
             QMessageBox.warning(
                 self,
-                "Fehler",
-                f"Der Name '{name}' ist für ein Standard-Profil reserviert.\n"
-                "Bitte wählen Sie einen anderen Namen."
+                tr('main_error'),
+                tr('main_profile_reserved', name=name)
             )
             return
         
@@ -1492,15 +1544,15 @@ class MainWindow(QMainWindow):
             
             QMessageBox.information(
                 self,
-                "Erfolg",
-                f"Profil '{name}' wurde gespeichert!"
+                tr('main_success'),
+                tr('main_profile_saved', name=name)
             )
             self.log_info(f"Profil gespeichert: {name}")
         else:
             QMessageBox.critical(
                 self,
-                "Fehler",
-                f"Profil '{name}' konnte nicht gespeichert werden."
+                tr('main_error'),
+                tr('main_profile_save_failed', name=name)
             )
             self.log_error(f"Fehler beim Speichern von Profil: {name}")
     
@@ -1509,7 +1561,7 @@ class MainWindow(QMainWindow):
         current_text = self.profile_combo.currentText()
         
         if current_text.startswith("--"):
-            QMessageBox.information(self, "Info", "Kein Profil ausgewählt.")
+            QMessageBox.information(self, tr('main_info'), tr('main_no_profile_selected'))
             return
         
         # Entferne Stern
@@ -1588,22 +1640,22 @@ class MainWindow(QMainWindow):
             # Prüfe ob bereits Favorit
             favorites = self.profile_manager.get_favorites()
             if profile_name in favorites:
-                unfav_action = QAction("⭐ Als Favorit entfernen", self)
+                unfav_action = QAction("❌ " + tr("menu_unmark_favorite"), self)
                 unfav_action.triggered.connect(lambda: self.toggle_favorite(profile_name, False))
                 menu.addAction(unfav_action)
             else:
-                fav_action = QAction("⭐ Als Favorit markieren", self)
+                fav_action = QAction("⭐ " + tr("menu_mark_favorite"), self)
                 fav_action.triggered.connect(lambda: self.toggle_favorite(profile_name, True))
                 menu.addAction(fav_action)
             
             menu.addSeparator()
         
         # Export/Import
-        export_action = QAction("📤 Profil exportieren...", self)
+        export_action = QAction("📤 " + tr("menu_profiles_export"), self)
         export_action.triggered.connect(self.export_profile)
         menu.addAction(export_action)
         
-        import_action = QAction("📥 Profil importieren...", self)
+        import_action = QAction("📥 " + tr("menu_profiles_import"), self)
         import_action.triggered.connect(self.import_profile)
         menu.addAction(import_action)
         
@@ -1699,7 +1751,7 @@ class MainWindow(QMainWindow):
                 combined.append(std_name)
         
         if not combined:
-            no_items_action = QAction("(Keine Favoriten oder Standard-Profile)", self)
+            no_items_action = QAction(tr("menu_no_favorites"), self)
             no_items_action.setEnabled(False)
             self.favorites_menu.addAction(no_items_action)
             return
@@ -1738,7 +1790,7 @@ class MainWindow(QMainWindow):
         ]
         
         if not other_profiles:
-            no_profiles_action = QAction("(Keine weiteren Profile)", self)
+            no_profiles_action = QAction(tr("menu_no_other_profiles"), self)
             no_profiles_action.setEnabled(False)
             self.all_profiles_menu.addAction(no_profiles_action)
             return
@@ -1835,19 +1887,152 @@ class MainWindow(QMainWindow):
         Args:
             language: "de" oder "en"
         """
+        # Prüfen ob die Sprache bereits gesetzt ist
+        current_language = get_translation_manager().get_current_language()
+        if current_language == language:
+            # Sprache ist bereits gesetzt - nichts tun
+            self.log_info(f"Language already set to: {language}")
+            return
+        
+        # Sprache ändern
         set_language(language)
         self.history_manager.save_user_preference('ui_language', language)
         
-        QMessageBox.information(
-            self,
-            "Sprache geändert / Language Changed",
-            "Die Sprache wurde geändert.\n"
-            "Bitte starten Sie die Anwendung neu um alle Änderungen zu sehen.\n\n"
-            "Language has been changed.\n"
-            "Please restart the application to see all changes."
-        )
+        # UI-Texte aktualisieren
+        self.refresh_ui()
+        
+        # Sprach-Dropdown aktualisieren
+        self.update_language_combo()
         
         self.log_info(f"Language changed to: {language}")
+    
+    def refresh_ui(self):
+        """Aktualisiert alle UI-Texte nach einem Sprachwechsel."""
+        # Window Title
+        self.setWindowTitle(tr("app_title"))
+        
+        # GUI Title
+        self.title_label.setText(tr("gui_title"))
+        
+        # Profile Section
+        self.profile_label.setText("📁 " + tr("profile_label"))
+        
+        # Profile Combo Box - erste Item
+        current_text = self.profile_combo.currentText()
+        if current_text == "-- Aktuell (nicht gespeichert) --" or current_text == "-- Current (not saved) --":
+            self.profile_combo.setItemText(0, tr("profile_current_unsaved"))
+        
+        # Profile Buttons Tooltips aktualisieren
+        for btn in self.findChildren(QPushButton):
+            text = btn.text()
+            if text == "💾":
+                btn.setToolTip(tr("profile_save_tooltip"))
+            elif text == "📋":
+                btn.setToolTip(tr("profile_duplicate_tooltip"))
+            elif text == "❌" and btn.width() <= 35:  # Kleiner Button = Profil-Delete-Button
+                btn.setToolTip(tr("profile_delete_tooltip"))
+            elif text == "⋮":
+                btn.setToolTip(tr("profile_menu_tooltip"))
+        
+        # Output Preview Title
+        self.output_title.setText(tr("output_preview_title"))
+        
+        # Buttons
+        self.btn_start.setText(tr("start_transcription_button"))
+        self.btn_start.setToolTip(tr("start_transcription_tooltip"))
+        self.btn_stop.setText(tr("stop_button"))
+        self.btn_stop.setToolTip(tr("stop_transcription_tooltip"))
+        
+        # Progress Bar
+        self.progress_bar.setFormat(tr("progress_format"))
+        
+        # Status Bar
+        if not self.is_processing:
+            self.statusBar().showMessage(tr("status_ready"))
+        
+        # Menu Bar - Titel aktualisieren
+        if hasattr(self, 'file_menu'):
+            self.file_menu.setTitle("📁 " + tr("menu_file"))
+            self.recent_files_menu.setTitle("🕒 " + tr("menu_recent_files"))
+            self.recent_models_menu.setTitle("🤖 " + tr("menu_recent_models"))
+            
+            # Menu Actions aktualisieren
+            for action in self.file_menu.actions():
+                text = action.text()
+                if '📦' in text:
+                    action.setText("📦 " + tr("menu_batch"))
+                elif '🗑️' in text and ('History' in text or 'Verlauf' in text):
+                    action.setText("🗑️ " + tr("menu_clear_history"))
+                elif '❌' in text:
+                    action.setText("❌ " + tr("menu_quit"))
+        
+        # Profile Menu
+        if hasattr(self, 'profile_menu'):
+            self.profile_menu.setTitle("📋 " + tr("menu_profiles_title"))
+            self.favorites_menu.setTitle("⭐ " + tr("menu_profiles_favorites"))
+            self.all_profiles_menu.setTitle("📋 " + tr("menu_profiles_all"))
+            
+            # Profile Menu Actions aktualisieren
+            for action in self.profile_menu.actions():
+                text = action.text()
+                if '📤' in text:
+                    action.setText("📤 " + tr("menu_profiles_export"))
+                elif '📥' in text:
+                    action.setText("📥 " + tr("menu_profiles_import"))
+        
+        # Help Menu
+        if hasattr(self, 'help_menu'):
+            self.help_menu.setTitle("❓ " + tr("menu_help"))
+            
+            # Help Menu Actions aktualisieren
+            for action in self.help_menu.actions():
+                text = action.text()
+                if '🎓' in text:
+                    action.setText("🎓 " + tr("menu_start_onboarding"))
+                elif 'ℹ️' in text:
+                    action.setText("ℹ️ " + tr("menu_about"))
+        
+        # Theme Switch Tooltip
+        self.update_theme_switch()
+        
+        # Sprach-Dropdown Tooltip aktualisieren
+        if hasattr(self, 'language_combo'):
+            self.language_combo.setToolTip(tr("menu_language"))
+        
+        # Menü-Inhalte aktualisieren
+        self.update_recent_files_menu()
+        self.update_recent_models_menu()
+        self.update_favorites_menu()
+        self.update_all_profiles_menu()
+        
+        # Panels aktualisieren (falls sie refresh_ui Methoden haben)
+        if hasattr(self.input_panel, 'refresh_ui'):
+            self.input_panel.refresh_ui()
+        if hasattr(self.model_panel, 'refresh_ui'):
+            self.model_panel.refresh_ui()
+        if hasattr(self.settings_panel, 'refresh_ui'):
+            self.settings_panel.refresh_ui()
+        if hasattr(self.diarization_panel, 'refresh_ui'):
+            self.diarization_panel.refresh_ui()
+        if hasattr(self.output_panel, 'refresh_ui'):
+            self.output_panel.refresh_ui()
+        
+        self.log_info("UI-Texte aktualisiert")
+    
+    def on_language_combo_changed(self, index: int):
+        """Wird aufgerufen wenn die Sprache im Dropdown geändert wird."""
+        language = self.language_combo.itemData(index)
+        if language:
+            self.change_language(language)
+    
+    def update_language_combo(self):
+        """Aktualisiert die Auswahl im Sprach-Dropdown."""
+        current_language = get_translation_manager().get_current_language()
+        index = self.language_combo.findData(current_language)
+        if index >= 0:
+            self.language_combo.blockSignals(True)
+            self.language_combo.setCurrentIndex(index)
+            self.language_combo.blockSignals(False)
     
     def check_model_updates(self):
         """Prüft auf Model-Updates (wird beim Start aufgerufen)."""

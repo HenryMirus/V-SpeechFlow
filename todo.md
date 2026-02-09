@@ -114,7 +114,14 @@
 ---
 
 ## **Verbesserungen**
-- [ ] Intuitivere UI/UX (Ausklappbare Menüs, Hilfe-Fenster, Header, Hell-Dunkel-Theme schalter)
+- [ ] Intuitivere UI/UX
+  - [ ] Logische Reihenfolge
+  - [ ] Ausklappbare Menüs
+  - [ ] Hilfe-Fenster
+  - [x] Menubar
+  - [x] Hell-Dunkel-Theme schalter
+  - [ ] Funktionierendes Umschalten zwischen DE und EN der UI
+  - [ ] Warning bei diarization mit mehr als 10 Personen, dass Mikrofon limitierender Faktor ist
 - [x] Onboarding visuell fixen = automatisches "scrollen" um dem Onboarding zu folgen
 - [x] Onboarding Fenster schließen = überspringnen / rausklicken und scrollen in der app ermöglichen
 - [x] Batch-Fenster einblenden und testen

@@ -160,132 +160,74 @@ class OnboardingManager:
         """Erstellt die Onboarding-Schritte."""
         # Schritt 0: Willkommen
         self.steps.append(OnboardingStep(
-            "🎉 Willkommen bei V-SpeechFlow!",
-            "<p>Dieses Tutorial führt Sie durch die wichtigsten Funktionen der App.</p>"
-            "<p><b>Tipp:</b> Sie können jederzeit im Hauptfenster scrollen und mit der App interagieren!</p>"
-            "<p>Klicken Sie auf 'Weiter' um zu beginnen.</p>",
+            tr("onboarding_welcome_step"),
+            tr("onboarding_welcome_text"),
             None
         ))
 
         # Schritt 1: Live-Recording
         self.steps.append(OnboardingStep(
-            "🎤 Live-Aufnahme",
-            "<p>Im <b>Live-Tab</b> können Sie direkt vom Mikrofon aufnehmen:</p>"
-            "<ul>"
-            "<li>Wählen Sie Ihr Mikrofon aus</li>"
-            "<li>Starten Sie die Aufnahme</li>"
-            "<li>Die Datei wird automatisch als Input verwendet</li>"
-            "</ul>",
+            tr("onboarding_live_title"),
+            tr("onboarding_live_text"),
             self.main_window.input_panel if hasattr(self.main_window, 'input_panel') else None,
             tab_index=0  # Live Tab
         ))
         
         # Schritt 2: Input Panel - File Tab
         self.steps.append(OnboardingStep(
-            "📁 Audio-Datei auswählen",
-            "<p>Im <b>Datei-Tab</b> können Sie eine Audio-Datei auswählen:</p>"
-            "<ul>"
-            "<li>Per Drag & Drop</li>"
-            "<li>Über den Durchsuchen-Button</li>"
-            "</ul>"
-            "<p>Unterstützte Formate: MP3, M4A, WAV, FLAC, OGG</p>",
+            tr("onboarding_file_title"),
+            tr("onboarding_file_text"),
             self.main_window.input_panel if hasattr(self.main_window, 'input_panel') else None,
             tab_index=1  # File Tab
         ))
         
         # Schritt 3: Batch-Processing
         self.steps.append(OnboardingStep(
-            "📦 Batch-Processing",
-            "<p>Im <b>Batch-Tab</b> können Sie mehrere Dateien gleichzeitig verarbeiten:</p>"
-            "<ul>"
-            "<li>Fügen Sie beliebig viele Dateien hinzu</li>"
-            "<li>Alle werden mit den aktuellen Einstellungen verarbeitet</li>"
-            "<li>Der Fortschritt wird für jede Datei angezeigt</li>"
-            "</ul>",
+            tr("onboarding_batch_title"),
+            tr("onboarding_batch_text"),
             self.main_window.input_panel if hasattr(self.main_window, 'input_panel') else None,
             tab_index=2  # Batch Tab
         ))
         
         # Schritt 4: Model Panel
         self.steps.append(OnboardingStep(
-            "🤖 Modell auswählen",
-            "<p>Wählen Sie ein Whisper-Modell aus:</p>"
-            "<ul>"
-            "<li><b>Base:</b> Schnell, weniger genau (~150 MB)</li>"
-            "<li><b>Small:</b> Ausgewogen (~500 MB)</li>"
-            "<li><b>Medium:</b> Höhere Qualität (~1.5 GB)</li>"
-            "<li><b>Large-v3:</b> Beste Qualität (~3 GB)</li>"
-            "</ul>"
-            "<p>Modelle können über die Info-Box heruntergeladen werden.</p>",
+            tr("onboarding_model_selection_title"),
+            tr("onboarding_model_selection_text"),
             self.main_window.model_panel if hasattr(self.main_window, 'model_panel') else None
         ))
         
         # Schritt 5: Settings Panel
         self.steps.append(OnboardingStep(
-            "⚙️ Einstellungen",
-            "<p>Passen Sie die Verarbeitung an:</p>"
-            "<ul>"
-            "<li><b>Threads:</b> CPU-Kerne für Verarbeitung</li>"
-            "<li><b>Sprache:</b> Ausgangssprache der Audio-Datei</li>"
-            "<li><b>Übersetzen:</b> Automatisch ins Englische übersetzen</li>"
-            "</ul>",
+            tr("onboarding_settings_title"),
+            tr("onboarding_settings_text"),
             self.main_window.settings_panel if hasattr(self.main_window, 'settings_panel') else None
         ))
         
         # Schritt 6: Diarization Panel
         self.steps.append(OnboardingStep(
-            "👥 Speaker Diarization",
-            "<p>Erkennen Sie verschiedene Sprecher:</p>"
-            "<ul>"
-            "<li>Aktivieren Sie Diarization</li>"
-            "<li>Wählen Sie zwischen exakter Anzahl oder Auto-Erkennung</li>"
-            "<li>Benötigt einen HuggingFace Token (kostenlos)</li>"
-            "</ul>"
-            "<p><b>Tipp:</b> Token kann in macOS Keychain gespeichert werden!</p>",
+            tr("onboarding_diarization_detailed_title"),
+            tr("onboarding_diarization_detailed_text"),
             self.main_window.diarization_panel if hasattr(self.main_window, 'diarization_panel') else None
         ))
         
         # Schritt 7: Output Panel
         self.steps.append(OnboardingStep(
-            "📄 Ausgabe-Einstellungen",
-            "<p>Konfigurieren Sie die Ausgabe:</p>"
-            "<ul>"
-            "<li><b>Ausgabe-Pfad:</b> Wo soll das Transkript gespeichert werden?</li>"
-            "<li><b>Timestamps:</b> Zeitstempel für jedes Segment</li>"
-            "<li><b>Format:</b> Plain Text oder strukturiert</li>"
-            "</ul>",
+            tr("onboarding_output_title"),
+            tr("onboarding_output_text"),
             self.main_window.output_panel if hasattr(self.main_window, 'output_panel') else None
         ))
         
         # Schritt 8: Profile
         self.steps.append(OnboardingStep(
-            "📋 Profile",
-            "<p>Speichern Sie häufig verwendete Einstellungen als Profile:</p>"
-            "<ul>"
-            "<li>Klicken Sie auf 💾 um aktuelle Einstellungen zu speichern</li>"
-            "<li>Wählen Sie ein Profil aus der Dropdown-Liste</li>"
-            "<li>Markieren Sie Favoriten mit ⭐</li>"
-            "<li>Exportieren/Importieren Sie Profile</li>"
-            "</ul>",
+            tr("onboarding_profiles_detailed_title"),
+            tr("onboarding_profiles_detailed_text"),
             self.main_window.profile_combo if hasattr(self.main_window, 'profile_combo') else None
         ))
         
         # Schritt 9: Start Button
         self.steps.append(OnboardingStep(
-            "▶️ Transkription starten",
-            "<p>Sie sind bereit!</p>"
-            "<ul>"
-            "<li>Klicken Sie auf <b>▶️ Start Transkription</b></li>"
-            "<li>Der Fortschritt wird rechts angezeigt</li>"
-            "<li>Das Transkript erscheint in Echtzeit</li>"
-            "</ul>"
-            "<p><b>Tastenkürzel:</b></p>"
-            "<ul>"
-            "<li><b>Strg+Enter:</b> Transkription starten</li>"
-            "<li><b>Escape:</b> Abbrechen</li>"
-            "<li><b>Strg+B:</b> Batch-Modus aktivieren</li>"
-            "<li><b>Strg+S:</b> Profil speichern</li>"
-            "</ul>",
+            tr("onboarding_start_button_title"),
+            tr("onboarding_start_button_text"),
             self.main_window.btn_start if hasattr(self.main_window, 'btn_start') else None
         ))
     
@@ -531,9 +473,8 @@ class OnboardingManager:
         
         # MessageBox ohne Parent um Blocking zu vermeiden
         msg_box = QMessageBox()
-        msg_box.setWindowTitle("Tutorial überspringen?")
-        msg_box.setText("Möchten Sie das Tutorial wirklich überspringen?\n\n"
-                       "Sie können es jederzeit über das Hilfe-Menü erneut starten.")
+        msg_box.setWindowTitle(tr("onboarding_skip_title"))
+        msg_box.setText(tr("onboarding_skip_message"))
         msg_box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         msg_box.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint)
         

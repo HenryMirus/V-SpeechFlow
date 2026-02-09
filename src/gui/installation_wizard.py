@@ -79,13 +79,86 @@ class WizardPage(QWidget):
 
 
 class WelcomePage(WizardPage):
-    """Willkommensseite des Wizards."""
+    """Willkommensseite des Wizards mit Sprachauswahl."""
     
-    def __init__(self):
-        super().__init__(
-            tr("wizard_welcome"),
-            tr("wizard_welcome_text")
+    def __init__(self, history_manager: HistoryManager = None):
+        # Bilinguale Willkommensnachricht
+        bilingual_title = "🌍 Willkommen / Welcome"
+        bilingual_description = (
+            "<div style='line-height: 1.6;'>"
+            "<p><b>🇩🇪 Deutsch:</b><br>"
+            "Willkommen bei V-SpeechFlow!<br>"
+            "Dieser Assistent hilft Ihnen bei der Ersteinrichtung.<br>"
+            "Bitte wählen Sie zunächst Ihre bevorzugte Sprache.</p>"
+            "<hr>"
+            "<p><b>🇺🇸 English:</b><br>"
+            "Welcome to V-SpeechFlow!<br>"
+            "This wizard will help you with the initial setup.<br>"
+            "Please select your preferred language first.</p>"
+            "</div>"
         )
+        
+        super().__init__(bilingual_title, bilingual_description)
+        
+        # Speichere history_manager für späteren Zugriff
+        self.history_manager = history_manager
+        
+        # Lade bereits gespeicherte Sprache aus user_preferences
+        saved_language = None
+        if history_manager:
+            saved_language = history_manager.get_user_preference("ui_language")
+        
+        # Sprachauswahl
+        from .translations import set_language
+        
+        language_group = QGroupBox("🌍 Language / Sprache")
+        language_layout = QHBoxLayout()
+        
+        self.language_combo = QComboBox()
+        self.language_combo.addItem("🇩🇪 Deutsch", "de")
+        self.language_combo.addItem("🇺🇸 English", "en")
+        
+        # Setze gespeicherte Sprache, falls vorhanden
+        if saved_language == "en":
+            self.language_combo.setCurrentIndex(1)
+        else:
+            self.language_combo.setCurrentIndex(0)
+        
+        # Bei Sprachwechsel: Sprache sofort ändern
+        self.language_combo.currentIndexChanged.connect(self.on_language_changed)
+        
+        language_layout.addWidget(self.language_combo)
+        language_group.setLayout(language_layout)
+        
+        self.content_layout.addWidget(language_group)
+        
+        # Info-Text
+        info_label = QLabel(
+            "<i>Die Sprache kann später jederzeit in den Einstellungen geändert werden.</i><br>"
+            "<i>The language can be changed later at any time in the settings.</i>"
+        )
+        info_label.setWordWrap(True)
+        self.content_layout.addWidget(info_label)
+    
+    def on_language_changed(self, index: int):
+        """Wird aufgerufen wenn die Sprache geändert wird."""
+        from .translations import set_language
+        language = self.language_combo.itemData(index)
+        set_language(language)
+        
+        # Speichere Sprache sofort in user_preferences (nicht in initial_config)
+        if self.history_manager:
+            self.history_manager.save_user_preference('ui_language', language)
+            print(f"✓ Sprache '{language}' in user_preferences gespeichert")
+        
+        # Informiere den Wizard über die Sprachänderung
+        wizard = self.parent().parent()  # QStackedWidget -> InstallationWizard
+        if isinstance(wizard, InstallationWizard):
+            wizard.on_language_changed()
+    
+    def get_data(self) -> dict:
+        """Gibt die gewählte Sprache zurück."""
+        return {"ui_language": self.language_combo.currentData()}
 
 
 class ModelPage(WizardPage):
@@ -107,7 +180,7 @@ class ModelPage(WizardPage):
         model_layout = QHBoxLayout()
         
         self.model_input = QLineEdit()
-        self.model_input.setPlaceholderText("z.B. models/ggml-small.bin")
+        self.model_input.setPlaceholderText(tr("wizard_model_placeholder"))
         # Setze gespeichertes Modell, falls vorhanden
         if saved_model:
             self.model_input.setText(saved_model)
@@ -131,22 +204,16 @@ class ModelPage(WizardPage):
         self.content_layout.addWidget(link_label)
         
         # Empfohlene Modelle
-        recommendations = QLabel(
-            "\n<b>Empfehlungen:</b><br>"
-            "• ggml-base.bin (~150 MB) - Schnell<br>"
-            "• ggml-small.bin (~500 MB) - Ausgewogen<br>"
-            "• ggml-medium.bin (~1.5 GB) - Genau<br>"
-            "• ggml-large-v3.bin (~3 GB) - Beste Qualität"
-        )
+        recommendations = QLabel(tr("wizard_model_recommendations"))
         self.content_layout.addWidget(recommendations)
     
     def browse_model(self):
         """Öffnet Datei-Dialog für Modell-Auswahl."""
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Modell auswählen",
+            tr("wizard_model_browse_title"),
             str(Path.home()),
-            "Whisper Models (*.bin);;All Files (*)"
+            tr("wizard_model_filter")
         )
         if file_path:
             self.model_input.setText(file_path)
@@ -178,12 +245,12 @@ class TokenPage(WizardPage):
         token_layout = QVBoxLayout()
         
         self.token_input = QLineEdit()
-        self.token_input.setPlaceholderText("hf_xxxxxxxxxxxxxxxxxxxx")
+        self.token_input.setPlaceholderText(tr("wizard_token_placeholder"))
         self.token_input.setEchoMode(QLineEdit.EchoMode.Password)
         token_layout.addWidget(self.token_input)
         
         # Show/Hide Button
-        show_btn = QCheckBox("Token anzeigen")
+        show_btn = QCheckBox(tr("wizard_token_show"))
         show_btn.toggled.connect(lambda checked: 
             self.token_input.setEchoMode(
                 QLineEdit.EchoMode.Normal if checked else QLineEdit.EchoMode.Password
@@ -204,11 +271,8 @@ class TokenPage(WizardPage):
         self.content_layout.addWidget(link_label)
         
         # Info
-        keychain_info = "in der macOS Keychain" if is_mac() else "lokal"
-        info_label = QLabel(
-            f"\n<i>Hinweis: Der Token wird sicher {keychain_info} gespeichert und kann später "
-            "jederzeit geändert werden. Sie können diesen Schritt auch überspringen.</i>"
-        )
+        keychain_info = tr("wizard_token_keychain_info_mac") if is_mac() else tr("wizard_token_keychain_info_other")
+        info_label = QLabel(tr("wizard_token_keychain_hint", location=keychain_info))
         info_label.setWordWrap(True)
         self.content_layout.addWidget(info_label)
     
@@ -231,38 +295,22 @@ class PreferencesPage(WizardPage):
         )
         
         # Lade bereits gespeicherte Einstellungen aus der History
-        saved_ui_lang = None
         saved_theme = None
         saved_threads = None
         saved_auto_open = False
         saved_check_updates = True
         
         if history_manager:
-            saved_ui_lang = history_manager.get_app_setting("ui_language")
             saved_theme = history_manager.get_app_setting("preferred_theme")
             saved_threads = history_manager.get_app_setting("default_threads")
             saved_auto_open = history_manager.get_user_preference("auto_open_transcript", False)
             saved_check_updates = history_manager.get_user_preference("check_model_updates", True)
         
-        # Sprache
-        lang_group = QGroupBox(tr("wizard_language"))
-        lang_layout = QHBoxLayout()
-        self.language_combo = QComboBox()
-        self.language_combo.addItems(["Deutsch", "English"])
-        # Setze gespeicherte Sprache, falls vorhanden
-        if saved_ui_lang == "en":
-            self.language_combo.setCurrentIndex(1)
-        elif saved_ui_lang == "de":
-            self.language_combo.setCurrentIndex(0)
-        lang_layout.addWidget(self.language_combo)
-        lang_group.setLayout(lang_layout)
-        self.content_layout.addWidget(lang_group)
-        
         # Theme
         theme_group = QGroupBox(tr("wizard_theme"))
         theme_layout = QHBoxLayout()
         self.theme_combo = QComboBox()
-        self.theme_combo.addItems(["Hell", "Dunkel"])
+        self.theme_combo.addItems([tr("wizard_theme_light"), tr("wizard_theme_dark")])
         # Setze gespeichertes Theme, falls vorhanden
         if saved_theme == "dark":
             self.theme_combo.setCurrentIndex(1)
@@ -282,7 +330,7 @@ class PreferencesPage(WizardPage):
         default_threads = saved_threads if saved_threads else get_recommended_threads()
         self.threads_spin.setValue(default_threads)
         threads_layout.addWidget(self.threads_spin)
-        recommended_label = QLabel(f"(Empfohlen: {get_recommended_threads()})")
+        recommended_label = QLabel(tr("wizard_threads_recommended", threads=get_recommended_threads()))
         threads_layout.addWidget(recommended_label)
         threads_layout.addStretch()
         threads_group.setLayout(threads_layout)
@@ -300,7 +348,6 @@ class PreferencesPage(WizardPage):
     def get_data(self) -> dict:
         """Gibt Präferenzen zurück."""
         return {
-            "ui_language": "de" if self.language_combo.currentIndex() == 0 else "en",
             "preferred_theme": "light" if self.theme_combo.currentIndex() == 0 else "dark",
             "default_threads": self.threads_spin.value(),
             "auto_open_transcript": self.auto_open_check.isChecked(),
@@ -320,10 +367,7 @@ class CompletePage(WizardPage):
         )
         
         # Info-Text
-        info_label = QLabel(
-            "Möchten Sie ein kurzes Tutorial starten?\n"
-            "Es erklärt die wichtigsten Funktionen von V-SpeechFlow."
-        )
+        info_label = QLabel(tr("wizard_tutorial_prompt"))
         info_label.setWordWrap(True)
         self.content_layout.addWidget(info_label)
         
@@ -407,7 +451,7 @@ class InstallationWizard(QDialog):
         self.pages = QStackedWidget()
         
         # Seiten hinzufügen (mit History-Manager für gespeicherte Werte)
-        self.welcome_page = WelcomePage()
+        self.welcome_page = WelcomePage(self.history_manager)
         self.model_page = ModelPage(self.history_manager)
         self.token_page = TokenPage()
         self.preferences_page = PreferencesPage(self.history_manager)
@@ -459,8 +503,8 @@ class InstallationWizard(QDialog):
             from PyQt6.QtWidgets import QMessageBox
             QMessageBox.warning(
                 self,
-                "Ungültige Eingabe",
-                "Bitte überprüfen Sie Ihre Eingaben."
+                tr("wizard_invalid_input"),
+                tr("wizard_check_inputs")
             )
             return
         
@@ -484,17 +528,95 @@ class InstallationWizard(QDialog):
             self.update_buttons()
     
     def update_buttons(self):
-        """Aktualisiert die Button-Zustände."""
+        """Aktualisiert die Button-Zustände und Texte."""
         current_index = self.pages.currentIndex()
         
         # Back-Button
         self.back_btn.setEnabled(current_index > 0)
+        self.back_btn.setText(tr("back"))
         
         # Next/Finish-Button
         is_last_page = current_index == self.pages.count() - 1
         self.next_btn.setVisible(not is_last_page)
+        self.next_btn.setText(tr("next"))
         self.finish_btn.setVisible(is_last_page)
+        self.finish_btn.setText(tr("finish"))
     
+    def refresh_wizard_ui(self):
+        """Aktualisiert alle UI-Texte nach Sprachwechsel."""
+        # Window Title
+        self.setWindowTitle(tr("wizard_title"))
+        
+        # Button-Texte
+        self.update_buttons()
+    
+    def on_language_changed(self):
+        """Wird von WelcomePage aufgerufen wenn die Sprache geändert wird."""
+        # Speichere die Daten der aktuellen Seiten
+        saved_data = {}
+        
+        # ModelPage Daten
+        if hasattr(self.model_page, 'model_input'):
+            saved_data['model_path'] = self.model_page.model_input.text()
+        
+        # TokenPage Daten
+        if hasattr(self.token_page, 'token_input'):
+            saved_data['token'] = self.token_page.token_input.text()
+        
+        # PreferencesPage Daten
+        if hasattr(self.preferences_page, 'theme_combo'):
+            saved_data['theme_index'] = self.preferences_page.theme_combo.currentIndex()
+        if hasattr(self.preferences_page, 'threads_spin'):
+            saved_data['threads'] = self.preferences_page.threads_spin.value()
+        if hasattr(self.preferences_page, 'auto_open_check'):
+            saved_data['auto_open'] = self.preferences_page.auto_open_check.isChecked()
+        if hasattr(self.preferences_page, 'check_updates_check'):
+            saved_data['check_updates'] = self.preferences_page.check_updates_check.isChecked()
+        
+        # Seiten neu erstellen (außer WelcomePage)
+        # ModelPage
+        model_page_index = self.pages.indexOf(self.model_page)
+        self.pages.removeWidget(self.model_page)
+        self.model_page.deleteLater()
+        self.model_page = ModelPage(self.history_manager)
+        if 'model_path' in saved_data:
+            self.model_page.model_input.setText(saved_data['model_path'])
+        self.pages.insertWidget(model_page_index, self.model_page)
+        
+        # TokenPage
+        token_page_index = self.pages.indexOf(self.token_page)
+        self.pages.removeWidget(self.token_page)
+        self.token_page.deleteLater()
+        self.token_page = TokenPage()
+        if 'token' in saved_data:
+            self.token_page.token_input.setText(saved_data['token'])
+        self.pages.insertWidget(token_page_index, self.token_page)
+        
+        # PreferencesPage
+        prefs_page_index = self.pages.indexOf(self.preferences_page)
+        self.pages.removeWidget(self.preferences_page)
+        self.preferences_page.deleteLater()
+        self.preferences_page = PreferencesPage(self.history_manager)
+        if 'theme_index' in saved_data:
+            self.preferences_page.theme_combo.setCurrentIndex(saved_data['theme_index'])
+        if 'threads' in saved_data:
+            self.preferences_page.threads_spin.setValue(saved_data['threads'])
+        if 'auto_open' in saved_data:
+            self.preferences_page.auto_open_check.setChecked(saved_data['auto_open'])
+        if 'check_updates' in saved_data:
+            self.preferences_page.check_updates_check.setChecked(saved_data['check_updates'])
+        self.pages.insertWidget(prefs_page_index, self.preferences_page)
+        
+        # CompletePage
+        complete_page_index = self.pages.indexOf(self.complete_page)
+        self.pages.removeWidget(self.complete_page)
+        self.complete_page.deleteLater()
+        self.complete_page = CompletePage()
+        self.complete_page.tutorial_requested.connect(self.on_tutorial_requested)
+        self.pages.insertWidget(complete_page_index, self.complete_page)
+        
+        # UI aktualisieren
+        self.refresh_wizard_ui()
     def on_tutorial_requested(self, start_tutorial: bool):
         """Handler wenn Tutorial requested wird."""
         print(f"=== on_tutorial_requested({start_tutorial}) ===")
@@ -522,30 +644,28 @@ class InstallationWizard(QDialog):
                 if not success:
                     QMessageBox.warning(
                         self,
-                        "Token-Speicherung fehlgeschlagen",
-                        "Der HuggingFace Token konnte nicht in der Keychain gespeichert werden.\n"
-                        "Sie können ihn später manuell im Diarization-Panel eingeben."
+                        tr("wizard_token_save_failed_title"),
+                        tr("wizard_token_save_failed_text")
                     )
             else:
                 QMessageBox.information(
                     self,
-                    "Keychain nicht verfügbar",
-                    "Die Keychain-Speicherung ist nur auf macOS verfügbar.\n"
-                    "Sie müssen den Token später manuell im Diarization-Panel eingeben."
+                    tr("wizard_keychain_not_available_title"),
+                    tr("wizard_keychain_not_available_text")
                 )
         
-        # Bereite Konfiguration vor (ohne hf_token und start_tutorial)
+        # Bereite Konfiguration vor (ohne hf_token, start_tutorial und ui_language)
+        # ui_language wird separat in user_preferences gespeichert (bereits in WelcomePage erledigt)
         print("\n=== 💾 Speichere Wizard-Konfiguration ===")
         initial_config = {k: v for k, v in self.collected_data.items() 
-                         if k not in ('hf_token', 'start_tutorial')}
+                         if k not in ('hf_token', 'start_tutorial', 'ui_language')}
         
         # Speichere als initial_config (wird beim ersten Start geladen)
         self.history_manager.save_initial_config(initial_config)
         print(f"  ✓ Initial-Config gespeichert: {list(initial_config.keys())}")
         
         # Speichere User-Preferences (unabhängig von Sessions)
-        if 'ui_language' in initial_config:
-            self.history_manager.save_user_preference('ui_language', initial_config['ui_language'])
+        # ui_language wurde bereits in WelcomePage gespeichert
         if 'preferred_theme' in initial_config:
             self.history_manager.save_user_preference('preferred_theme', initial_config['preferred_theme'])
         if 'check_model_updates' in initial_config:
