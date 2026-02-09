@@ -5,6 +5,7 @@ Ermöglicht Speichern/Laden von Settings-Profilen.
 """
 
 import json
+import os
 from pathlib import Path
 from typing import Dict, List, Optional
 from datetime import datetime
@@ -27,33 +28,10 @@ class ProfileManager:
     def _create_default_profiles(self) -> Dict[str, dict]:
         """Erstellt vordefinierte Standard-Profile."""
         return {
-            "Schnelles Interview": {
-                "description": "Optimiert für schnelle Verarbeitung, 2 Sprecher",
+            "Leiterrunde": {
+                "description": "Optimiert für Meetings mit mehreren Sprechern",
                 "settings": {
                     "threads": 6,
-                    "language": "de",
-                    "translate": False,
-                    "keep_temp": False,
-                },
-                "diarization": {
-                    "enabled": True,
-                    "mode": "exact",
-                    "num_speakers": 2,
-                    "min_speakers": None,
-                    "max_speakers": None,
-                    "hf_token": None,
-                },
-                "output": {
-                    "output_path": None,
-                    "timestamps": True,
-                    "format": "structured",
-                    "auto_open": True,
-                }
-            },
-            "Hochqualitäts-Meeting": {
-                "description": "Beste Qualität, 3-6 Sprecher, mit Timestamps",
-                "settings": {
-                    "threads": 8,
                     "language": "de",
                     "translate": False,
                     "keep_temp": False,
@@ -62,58 +40,12 @@ class ProfileManager:
                     "enabled": True,
                     "mode": "auto",
                     "num_speakers": None,
-                    "min_speakers": 3,
-                    "max_speakers": 6,
+                    "min_speakers": 1,
+                    "max_speakers": 50,
                     "hf_token": None,
                 },
                 "output": {
-                    "output_path": None,
-                    "timestamps": True,
-                    "format": "structured",
-                    "auto_open": True,
-                }
-            },
-            "Einfache Transkription": {
-                "description": "Basis-Transkription ohne Diarization",
-                "settings": {
-                    "threads": 6,
-                    "language": "de",
-                    "translate": False,
-                    "keep_temp": False,
-                },
-                "diarization": {
-                    "enabled": False,
-                    "mode": None,
-                    "num_speakers": None,
-                    "min_speakers": None,
-                    "max_speakers": None,
-                    "hf_token": None,
-                },
-                "output": {
-                    "output_path": None,
-                    "timestamps": False,
-                    "format": "plain",
-                    "auto_open": True,
-                }
-            },
-            "Englisch → Deutsch": {
-                "description": "Englisches Audio mit deutscher Übersetzung",
-                "settings": {
-                    "threads": 8,
-                    "language": "en",
-                    "translate": True,
-                    "keep_temp": False,
-                },
-                "diarization": {
-                    "enabled": False,
-                    "mode": None,
-                    "num_speakers": None,
-                    "min_speakers": None,
-                    "max_speakers": None,
-                    "hf_token": None,
-                },
-                "output": {
-                    "output_path": None,
+                    "output_path": os.path.expanduser("~/Desktop/Leiterrunde_Transkripte"),
                     "timestamps": True,
                     "format": "structured",
                     "auto_open": True,
