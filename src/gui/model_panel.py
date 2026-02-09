@@ -21,6 +21,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QDesktopServices, QFont
+from .translations import tr
 from .model_utils import (
     AVAILABLE_MODELS,
     validate_model_file,
@@ -45,7 +46,7 @@ class ModelPanel(QWidget):
         # Titel
         title = QLabel("🤖 Whisper-Modell")
         title_font = QFont()
-        title_font.setPointSize(12)
+        title_font.setPointSize(13)
         title_font.setBold(True)
         title.setFont(title_font)
         layout.addWidget(title)
@@ -55,11 +56,12 @@ class ModelPanel(QWidget):
         self.model_combo = QComboBox()
         self.populate_model_combo()
         self.model_combo.currentTextChanged.connect(self.on_model_combo_changed)
+        self.model_combo.setToolTip(tr("tooltip_model_path"))
         layout.addWidget(self.model_combo)
         
         # Modell-Details
         self.model_details = QLabel()
-        self.model_details.setStyleSheet("color: gray; font-size: 10px; text-align: justify;")
+        self.model_details.setStyleSheet("color: gray; font-size: 11px; text-align: justify;")
         self.model_details.setWordWrap(True)
         layout.addWidget(self.model_details)
         
@@ -71,10 +73,12 @@ class ModelPanel(QWidget):
         self.model_path_input.setReadOnly(False)
         self.model_path_input.setPlaceholderText("/path/to/ggml-small.bin")
         self.model_path_input.textChanged.connect(self.validate_model_path)
+        self.model_path_input.setToolTip(tr("tooltip_model_path"))
         path_layout.addWidget(self.model_path_input)
         
         btn_browse = QPushButton("📂 Durchsuchen")
         btn_browse.clicked.connect(self.browse_model_file)
+        btn_browse.setToolTip("Whisper-Modelldatei auswählen")
         path_layout.addWidget(btn_browse)
         
         layout.addLayout(path_layout)
@@ -103,14 +107,14 @@ class ModelPanel(QWidget):
             
             # Model Description
             desc = QLabel(f"  {info['description']}")
-            desc.setStyleSheet("color: gray; font-size: 9px;")
+            desc.setStyleSheet("color: gray; font-size: 10px;")
             desc.setWordWrap(True)
             info_widget_layout.addWidget(desc)
             
             # Download Link
             link = QLabel(f'  Dateiname: <a href="{info["url"]}"><code>{filename}</code></a>')
             link.setOpenExternalLinks(True)
-            link.setStyleSheet("font-size: 9px;")
+            link.setStyleSheet("font-size: 10px;")
             info_widget_layout.addWidget(link)
             
             info_widget_layout.addSpacing(5)
@@ -129,7 +133,7 @@ class ModelPanel(QWidget):
             "• Download von <a href=\"https://huggingface.co/ggerganov/whisper.cpp\">HuggingFace</a>"
         )
         tips.setOpenExternalLinks(True)
-        tips.setStyleSheet("color: gray; font-size: 9px;")
+        tips.setStyleSheet("color: gray; font-size: 10px;")
         tips.setWordWrap(True)
         layout.addWidget(tips)
         
@@ -214,3 +218,12 @@ class ModelPanel(QWidget):
         if model_path and Path(model_path).exists():
             self.model_path_input.setText(model_path)
             self.validate_model_path()
+    
+    def get_model_path(self) -> str:
+        """
+        Gibt den aktuellen Modell-Pfad zurück.
+        
+        Returns:
+            Der Pfad aus dem model_path_input Feld
+        """
+        return self.model_path_input.text().strip()

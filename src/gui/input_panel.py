@@ -23,6 +23,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QDragLeaveEvent, QIcon
+from .translations import tr
 from .utils import list_audio_devices
 from .macos_utils import get_hf_token_from_keychain, is_mac
 from .workers import RecordingWorker
@@ -74,7 +75,7 @@ class InputPanel(QWidget):
         
         # Titel
         title = QLabel("Audio-Datei auswählen")
-        title.setStyleSheet("font-weight: bold; font-size: 12px;")
+        title.setStyleSheet("font-weight: bold; font-size: 13px;")
         layout.addWidget(title)
         
         # Datei-Pfad Display (mit Drag & Drop)
@@ -82,6 +83,7 @@ class InputPanel(QWidget):
         self.file_path_display.setReadOnly(True)
         self.file_path_display.setPlaceholderText("Ziehe Datei hier hin oder klicke zum Auswählen...")
         self.file_path_display.setDragEnabled(False)
+        self.file_path_display.setToolTip(tr("tooltip_input_file"))
         
         layout.addWidget(QLabel("Datei-Pfad:"))
         layout.addWidget(self.file_path_display)
@@ -91,10 +93,12 @@ class InputPanel(QWidget):
         
         btn_browse = QPushButton("📂 Durchsuchen")
         btn_browse.clicked.connect(self.open_file_dialog)
+        btn_browse.setToolTip(tr("tooltip_input_file"))
         btn_layout.addWidget(btn_browse)
         
         btn_clear = QPushButton("✕ Löschen")
         btn_clear.clicked.connect(self.clear_file_selection)
+        btn_clear.setToolTip("Dateiauswahl zurücksetzen")
         btn_layout.addWidget(btn_clear)
         
         layout.addLayout(btn_layout)
@@ -103,7 +107,7 @@ class InputPanel(QWidget):
         formats_label = QLabel(
             f"✓ Unterstützte Formate: {', '.join(self.SUPPORTED_FORMATS).upper()}"
         )
-        formats_label.setStyleSheet("color: gray; font-size: 10px;")
+        formats_label.setStyleSheet("color: gray; font-size: 11px;")
         layout.addWidget(formats_label)
         
         layout.addStretch()
@@ -116,7 +120,7 @@ class InputPanel(QWidget):
         
         # Titel
         title = QLabel("Mikrofon-Aufnahme")
-        title.setStyleSheet("font-weight: bold; font-size: 12px;")
+        title.setStyleSheet("font-weight: bold; font-size: 13px;")
         layout.addWidget(title)
         
         # Mikrofon-Auswahl
@@ -125,34 +129,15 @@ class InputPanel(QWidget):
         mic_layout = QHBoxLayout()
         self.mic_combo = QComboBox()
         self.mic_combo.addItem("🔍 Mikrofone werden geladen...")
+        self.mic_combo.setToolTip(tr("tooltip_input_live"))
         mic_layout.addWidget(self.mic_combo)
         
         btn_refresh = QPushButton("🔄 Aktualisieren")
         btn_refresh.clicked.connect(self.refresh_devices)
+        btn_refresh.setToolTip("Mikrofonliste aktualisieren")
         mic_layout.addWidget(btn_refresh)
         
         layout.addLayout(mic_layout)
-        
-        # HuggingFace Token (nur bei macOS relevant, aber cross-platform)
-        if is_mac() or True:  # Immer anzeigen für Transparenz
-            layout.addWidget(QLabel("HuggingFace Token (für Speaker Diarization):"))
-            
-            token_layout = QHBoxLayout()
-            self.hf_token_input = QLineEdit()
-            self.hf_token_input.setEchoMode(QLineEdit.EchoMode.Password)
-            self.hf_token_input.setPlaceholderText("Token wird aus Keychain geladen / hier eingeben...")
-            token_layout.addWidget(self.hf_token_input)
-            
-            btn_load_keychain = QPushButton("🔑 Aus Keychain laden")
-            btn_load_keychain.clicked.connect(self.load_hf_token_from_keychain)
-            token_layout.addWidget(btn_load_keychain)
-            
-            layout.addLayout(token_layout)
-            
-            # Hint
-            hint = QLabel("💡 macOS: Token mit speichern: `security add-generic-password -s HF_V-Speechflow -w \"hf_xxx\"`")
-            hint.setStyleSheet("color: gray; font-size: 9px;")
-            layout.addWidget(hint)
         
         # Recording Status
         layout.addWidget(QLabel("Recording Status:"))
@@ -173,19 +158,21 @@ class InputPanel(QWidget):
         self.btn_start_recording = QPushButton("▶️ Start Recording")
         self.btn_start_recording.clicked.connect(self.start_recording)
         self.btn_start_recording.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
+        self.btn_start_recording.setToolTip(tr("tooltip_input_live"))
         control_layout.addWidget(self.btn_start_recording)
         
         self.btn_stop_recording = QPushButton("⏹️ Stop Recording")
         self.btn_stop_recording.clicked.connect(self.stop_recording)
         self.btn_stop_recording.setEnabled(False)
         self.btn_stop_recording.setStyleSheet("background-color: #f44336; color: white; font-weight: bold;")
+        self.btn_stop_recording.setToolTip("Aufnahme beenden und Datei speichern")
         control_layout.addWidget(self.btn_stop_recording)
         
         layout.addLayout(control_layout)
         
         # Info
         info = QLabel("💡 Recording wird als temporäre WAV-Datei gespeichert")
-        info.setStyleSheet("color: gray; font-size: 10px;")
+        info.setStyleSheet("color: gray; font-size: 11px;")
         layout.addWidget(info)
         
         layout.addStretch()

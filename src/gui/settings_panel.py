@@ -20,7 +20,24 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
+from .translations import tr
 from .system_utils import get_system_info, get_recommended_threads
+
+
+class NoScrollSlider(QSlider):
+    """Slider der nicht auf Mausrad-Scroll reagiert."""
+    
+    def wheelEvent(self, event):
+        """Ignoriert Mausrad-Events."""
+        event.ignore()
+
+
+class NoScrollSpinBox(QSpinBox):
+    """SpinBox der nicht auf Mausrad-Scroll reagiert."""
+    
+    def wheelEvent(self, event):
+        """Ignoriert Mausrad-Events."""
+        event.ignore()
 
 
 class SettingsPanel(QWidget):
@@ -41,7 +58,7 @@ class SettingsPanel(QWidget):
         # Titel
         title = QLabel("⚙️ Verarbeitungs-Optionen")
         title_font = QFont()
-        title_font.setPointSize(12)
+        title_font.setPointSize(13)
         title_font.setBold(True)
         title.setFont(title_font)
         layout.addWidget(title)
@@ -57,25 +74,27 @@ class SettingsPanel(QWidget):
         
         cpu_info_text = f"💻 System: {cpu_brand} ({cpu_count} Kerne) | Empfohlen: {recommended} Threads"
         cpu_info = QLabel(cpu_info_text)
-        cpu_info.setStyleSheet("color: gray; font-size: 10px;")
+        cpu_info.setStyleSheet("color: gray; font-size: 11px;")
         thread_layout.addWidget(cpu_info)
         
         # Thread Slider + Spinner
         slider_layout = QHBoxLayout()
         slider_layout.addWidget(QLabel("Threads:"))
         
-        self.thread_slider = QSlider(Qt.Orientation.Horizontal)
+        self.thread_slider = NoScrollSlider(Qt.Orientation.Horizontal)
         self.thread_slider.setMinimum(1)
-        self.thread_slider.setMaximum(16)
+        self.thread_slider.setMaximum(cpu_count)
         self.thread_slider.setValue(recommended)
         self.thread_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         self.thread_slider.setTickInterval(1)
+        self.thread_slider.setToolTip(tr("tooltip_threads"))
         slider_layout.addWidget(self.thread_slider)
         
-        self.thread_spinbox = QSpinBox()
+        self.thread_spinbox = NoScrollSpinBox()
         self.thread_spinbox.setMinimum(1)
-        self.thread_spinbox.setMaximum(16)
+        self.thread_spinbox.setMaximum(cpu_count)
         self.thread_spinbox.setValue(recommended)
+        self.thread_spinbox.setToolTip(tr("tooltip_threads"))
         slider_layout.addWidget(self.thread_spinbox)
         
         # Slider & Spinbox verbinden
@@ -87,7 +106,7 @@ class SettingsPanel(QWidget):
         thread_layout.addLayout(slider_layout)
         
         hint = QLabel("💡 Höhere Werte = mehr CPU-Last, aber schneller (M1: 6-8, M3 Pro: 8-10)")
-        hint.setStyleSheet("color: gray; font-size: 9px;")
+        hint.setStyleSheet("color: gray; font-size: 10px;")
         hint.setWordWrap(True)
         thread_layout.addWidget(hint)
         
@@ -110,6 +129,7 @@ class SettingsPanel(QWidget):
         self.language_combo.addItem("Auto Detect", "auto")
         self.language_combo.setCurrentIndex(0)  # Deutsch default
         self.language_combo.currentIndexChanged.connect(self.emit_settings_changed)
+        self.language_combo.setToolTip(tr("tooltip_language"))
         lang_combo_layout.addWidget(self.language_combo)
         lang_combo_layout.addStretch()
         
@@ -119,6 +139,7 @@ class SettingsPanel(QWidget):
         self.translate_checkbox = QCheckBox("Ins Englische übersetzen (--translate)")
         self.translate_checkbox.setChecked(False)
         self.translate_checkbox.stateChanged.connect(self.emit_settings_changed)
+        self.translate_checkbox.setToolTip(tr("tooltip_translate"))
         lang_layout.addWidget(self.translate_checkbox)
         
         lang_group.setLayout(lang_layout)
@@ -132,10 +153,11 @@ class SettingsPanel(QWidget):
         self.keep_temp_checkbox = QCheckBox("Temporäre WAV-Datei behalten (--keep-temp)")
         self.keep_temp_checkbox.setChecked(False)
         self.keep_temp_checkbox.stateChanged.connect(self.emit_settings_changed)
+        self.keep_temp_checkbox.setToolTip("Konvertierte WAV-Datei nach Verarbeitung nicht löschen")
         output_layout.addWidget(self.keep_temp_checkbox)
         
         hint2 = QLabel("💡 Nützlich fürs Debugging oder wenn du die Original-WAV speichern möchtest")
-        hint2.setStyleSheet("color: gray; font-size: 9px;")
+        hint2.setStyleSheet("color: gray; font-size: 10px;")
         hint2.setWordWrap(True)
         output_layout.addWidget(hint2)
         
@@ -153,6 +175,7 @@ class SettingsPanel(QWidget):
         self.binary_path_input = QLineEdit()
         self.binary_path_input.setPlaceholderText("Leer lassen für Auto-Detection (build/bin/stt_native)")
         self.binary_path_input.textChanged.connect(self.emit_settings_changed)
+        self.binary_path_input.setToolTip("Pfad zum stt_native Binary (leer lassen für automatische Erkennung)")
         binary_layout.addWidget(self.binary_path_input)
         
         btn_browse_binary = QPushButton("📂")
@@ -170,7 +193,7 @@ class SettingsPanel(QWidget):
         advanced_layout.addLayout(binary_layout)
         
         hint3 = QLabel("💡 Nur für Entwicklung/Debugging. Normalerweise automatisch erkannt.")
-        hint3.setStyleSheet("color: gray; font-size: 9px;")
+        hint3.setStyleSheet("color: gray; font-size: 10px;")
         hint3.setWordWrap(True)
         advanced_layout.addWidget(hint3)
         
@@ -225,3 +248,16 @@ class SettingsPanel(QWidget):
         
         if 'binary_path' in settings:
             self.binary_path_input.setText(settings['binary_path'])
+    
+    def set_threads(self, threads: int):
+        """
+        Setzt die Thread-Anzahl im Slider und Spinbox.
+        
+        Args:
+            threads: Anzahl der Threads (1-cpu_count)
+        """
+        # Wert begrenzen auf gültigen Bereich
+        cpu_count = self.system_info.get('cpu_count', 16)
+        threads = max(1, min(cpu_count, threads))
+        # Setze beide Widgets (sie sind bereits miteinander verbunden)
+        self.thread_spinbox.setValue(threads)

@@ -22,6 +22,8 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
+from .translations import tr
+from .translations import tr
 
 
 class OutputPanel(QWidget):
@@ -42,7 +44,7 @@ class OutputPanel(QWidget):
         # Titel
         title = QLabel("📝 Ausgabe-Einstellungen")
         title_font = QFont()
-        title_font.setPointSize(12)
+        title_font.setPointSize(13)
         title_font.setBold(True)
         title.setFont(title_font)
         layout.addWidget(title)
@@ -57,10 +59,12 @@ class OutputPanel(QWidget):
         self.output_path_input = QLineEdit()
         self.output_path_input.setPlaceholderText("Automatisch neben Input-Datei oder eigenen Pfad wählen...")
         self.output_path_input.textChanged.connect(self.on_path_changed)
+        self.output_path_input.setToolTip(tr("tooltip_output_path"))
         path_layout.addWidget(self.output_path_input)
         
         btn_browse = QPushButton("📂 Speichern unter...")
         btn_browse.clicked.connect(self.browse_output_file)
+        btn_browse.setToolTip(tr("tooltip_output_path"))
         path_layout.addWidget(btn_browse)
         
         btn_clear = QPushButton("✕")
@@ -73,7 +77,7 @@ class OutputPanel(QWidget):
         
         # Validierungs-Status
         self.path_status = QLabel("💡 Automatisch: <input_name>_transcript.txt")
-        self.path_status.setStyleSheet("color: gray; font-size: 9px;")
+        self.path_status.setStyleSheet("color: gray; font-size: 10px;")
         self.path_status.setWordWrap(True)
         output_layout.addWidget(self.path_status)
         
@@ -88,10 +92,11 @@ class OutputPanel(QWidget):
         self.timestamps_checkbox = QCheckBox("Segmente mit Timestamps (-s)")
         self.timestamps_checkbox.setChecked(False)
         self.timestamps_checkbox.stateChanged.connect(self.emit_settings_changed)
+        self.timestamps_checkbox.setToolTip(tr("tooltip_segments"))
         format_layout.addWidget(self.timestamps_checkbox)
         
         timestamps_hint = QLabel("💡 Beispiel: [00:00:00.000 --> 00:00:05.000] Text hier...")
-        timestamps_hint.setStyleSheet("color: gray; font-size: 9px; margin-left: 20px;")
+        timestamps_hint.setStyleSheet("color: gray; font-size: 10px; margin-left: 20px;")
         timestamps_hint.setWordWrap(True)
         format_layout.addWidget(timestamps_hint)
         
@@ -105,33 +110,35 @@ class OutputPanel(QWidget):
         self.plain_radio = QRadioButton("Plain Text (.txt)")
         self.plain_radio.setChecked(True)
         self.plain_radio.toggled.connect(self.emit_settings_changed)
+        self.plain_radio.setToolTip("Einfacher Text ohne Metadaten")
         self.format_group.addButton(self.plain_radio, 1)
         format_layout.addWidget(self.plain_radio)
         
         plain_hint = QLabel("Einfacher Text, ideal für Notizen und Dokumentation")
-        plain_hint.setStyleSheet("color: gray; font-size: 9px; margin-left: 20px;")
+        plain_hint.setStyleSheet("color: gray; font-size: 10px; margin-left: 20px;")
         format_layout.addWidget(plain_hint)
         
         self.structured_radio = QRadioButton("Strukturiert mit Metadaten (.txt)")
         self.structured_radio.toggled.connect(self.emit_settings_changed)
+        self.structured_radio.setToolTip("Mit Header (Datum, Modell, Settings)")
         self.format_group.addButton(self.structured_radio, 2)
         format_layout.addWidget(self.structured_radio)
         
         structured_hint = QLabel("Mit Header (Datum, Modell, Settings, etc.)")
-        structured_hint.setStyleSheet("color: gray; font-size: 9px; margin-left: 20px;")
+        structured_hint.setStyleSheet("color: gray; font-size: 10px; margin-left: 20px;")
         format_layout.addWidget(structured_hint)
         
         format_layout.addSpacing(10)
         
         # Preview Example
         preview_label = QLabel("📋 Vorschau-Beispiel:")
-        preview_label.setStyleSheet("font-weight: bold; font-size: 10px;")
+        preview_label.setStyleSheet("font-weight: bold; font-size: 11px;")
         format_layout.addWidget(preview_label)
         
         self.preview_text = QLabel(self._get_preview_text())
         self.preview_text.setStyleSheet(
             "background-color: #f5f5f5; padding: 10px; "
-            "border-radius: 4px; font-family: monospace; font-size: 9px;"
+            "border-radius: 4px; font-family: monospace; font-size: 10px; color: black;"
         )
         self.preview_text.setWordWrap(True)
         self.preview_text.setTextFormat(Qt.TextFormat.PlainText)
@@ -151,6 +158,7 @@ class OutputPanel(QWidget):
         self.auto_open_checkbox = QCheckBox("Transkript nach Fertigstellung automatisch öffnen")
         self.auto_open_checkbox.setChecked(False)
         self.auto_open_checkbox.stateChanged.connect(self.emit_settings_changed)
+        self.auto_open_checkbox.setToolTip("Öffnet die Ausgabedatei automatisch nach erfolgreicher Transkription")
         extra_layout.addWidget(self.auto_open_checkbox)
         
         extra_group.setLayout(extra_layout)
@@ -187,7 +195,7 @@ class OutputPanel(QWidget):
         if not path_text:
             self.selected_output_path = None
             self.path_status.setText("💡 Automatisch: <input_name>_transcript.txt")
-            self.path_status.setStyleSheet("color: gray; font-size: 9px;")
+            self.path_status.setStyleSheet("color: gray; font-size: 10px;")
         else:
             # Validiere Pfad
             path = Path(path_text)
@@ -198,16 +206,16 @@ class OutputPanel(QWidget):
             if parent.exists() and parent.is_dir():
                 self.selected_output_path = str(path)
                 self.path_status.setText(f"✓ Ausgabe nach: {path.name}")
-                self.path_status.setStyleSheet("color: green; font-size: 9px;")
+                self.path_status.setStyleSheet("color: green; font-size: 10px;")
             elif str(parent) == ".":
                 # Relativer Pfad, nur Dateiname
                 self.selected_output_path = str(path)
                 self.path_status.setText(f"✓ Ausgabe: {path.name} (im aktuellen Verzeichnis)")
-                self.path_status.setStyleSheet("color: green; font-size: 9px;")
+                self.path_status.setStyleSheet("color: green; font-size: 10px;")
             else:
                 self.selected_output_path = str(path)
                 self.path_status.setText(f"⚠ Verzeichnis existiert nicht: {parent}")
-                self.path_status.setStyleSheet("color: orange; font-size: 9px;")
+                self.path_status.setStyleSheet("color: orange; font-size: 10px;")
         
         self.emit_settings_changed()
     
@@ -338,3 +346,12 @@ Diarization: 2 Sprecher
         
         # Fallback
         return "transcript_output.txt"
+    
+    def set_auto_open(self, enabled: bool):
+        """
+        Setzt den Auto-Open Zustand der Checkbox.
+        
+        Args:
+            enabled: True um Auto-Open zu aktivieren, False zum Deaktivieren
+        """
+        self.auto_open_checkbox.setChecked(enabled)
