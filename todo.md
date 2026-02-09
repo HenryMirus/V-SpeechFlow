@@ -117,8 +117,9 @@
 - [ ] Intuitivere UI/UX (Ausklappbare Menüs, Hilfe-Fenster, Header, Hell-Dunkel-Theme schalter)
 - [ ] Onboarding visuell fixen = automatisches "scrollen" um dem Onboarding zu folgen
 - [ ] Onboarding Fenster schließen = überspringnen / rausklicken und scrollen in der app ermöglichen
-- [ ] Batch-Fenster einblenden und testen
+- [x] Batch-Fenster einblenden und testen
 - [x] Progressbar fixen
 - [x] ERROR im Output bei funktionierender Transkription entfernen/Fixen
+- [ ] Standard-System-Mikrofon automatisch auswählen
 - [ ] Bad Smells entfernen, Code schön machen
 - [ ] Exe erstellen, die automatisch alles buildet und die APP startet.

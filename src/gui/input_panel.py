@@ -27,6 +27,7 @@ from .translations import tr
 from .utils import list_audio_devices
 from .macos_utils import get_hf_token_from_keychain, is_mac
 from .workers import RecordingWorker
+from .batch_panel import BatchPanel
 
 
 class InputPanel(QWidget):
@@ -34,6 +35,7 @@ class InputPanel(QWidget):
     
     # Signals
     file_selected = pyqtSignal(str)  # Signal wenn Datei ausgewählt
+    batch_selected = pyqtSignal()  # Signal wenn Batch-Processing gewählt
     recording_started = pyqtSignal()  # Signal wenn Live-Recording startet
     recording_stopped = pyqtSignal()  # Signal wenn Live-Recording endet
     
@@ -60,12 +62,13 @@ class InputPanel(QWidget):
         """Initialisiert die UI."""
         layout = QVBoxLayout(self)
         
-        # Tab Widget: Datei vs Live
-        tabs = QTabWidget()
-        tabs.addTab(self.create_file_tab(), "📁 Datei")
-        tabs.addTab(self.create_live_tab(), "🎤 Live")
+        # Tab Widget: Datei vs Batch vs Live
+        self.tabs = QTabWidget()
+        self.tabs.addTab(self.create_file_tab(), "📁 Datei")
+        self.tabs.addTab(self.create_batch_tab(), "📦 Batch")
+        self.tabs.addTab(self.create_live_tab(), "🎤 Live")
         
-        layout.addWidget(tabs)
+        layout.addWidget(self.tabs)
         self.setLayout(layout)
     
     def create_file_tab(self):
@@ -112,6 +115,12 @@ class InputPanel(QWidget):
         
         layout.addStretch()
         return widget
+    
+    def create_batch_tab(self):
+        """Erstellt den Tab für Batch-Processing."""
+        # BatchPanel direkt einbinden
+        self.batch_panel = BatchPanel()
+        return self.batch_panel
     
     def create_live_tab(self):
         """Erstellt den Tab für Live-Recording."""
@@ -439,3 +448,30 @@ class InputPanel(QWidget):
     def is_live_mode(self) -> bool:
         """Gibt zurück, ob Live-Mode aktiv ist."""
         return self.is_recording
+    
+    def get_input_mode(self) -> str:
+        """Gibt den aktuellen Input-Modus zurück: 'file', 'batch', oder 'live'."""
+        current_index = self.tabs.currentIndex()
+        if current_index == 0:
+            return 'file'
+        elif current_index == 1:
+            return 'batch'
+        elif current_index == 2:
+            return 'live'
+        return 'file'
+    
+    def is_batch_mode(self) -> bool:
+        """Gibt zurück, ob Batch-Mode aktiv ist."""
+        return self.get_input_mode() == 'batch'
+    
+    def get_batch_files(self) -> list:
+        """Gibt die Liste der Batch-Dateien zurück."""
+        if hasattr(self, 'batch_panel'):
+            return self.batch_panel.get_file_list()
+        return []
+    
+    def get_batch_options(self) -> dict:
+        """Gibt die Batch-Optionen zurück."""
+        if hasattr(self, 'batch_panel'):
+            return self.batch_panel.get_options()
+        return {}
