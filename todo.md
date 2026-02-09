@@ -105,11 +105,11 @@
 - [ ] Echtzeit-Wellenform während Recording
 
 ### **Accessibility & Erwerbbarkeit**
-- [ ] Mehrsprachige UI (Deutsch, Englisch, ...)
-- [ ] Kontexthilfe / Tooltips für alle Optionen
-- [ ] Auto-Update-Check für Modelle
-- [ ] Installation-Wizard beim ersten Start
-- [ ] Video-Tutorial / onboarding
+- [x] Mehrsprachige UI (Deutsch, Englisch, ...) → `translations.py` mit DE/EN Support
+- [x] Kontexthilfe / Tooltips für alle Optionen → 36 Tooltips in allen Panels
+- [x] Auto-Update-Check für Modelle → `model_utils.py` mit Update-Check und Caching
+- [x] Installation-Wizard beim ersten Start → `installation_wizard.py` mit History-Integration
+- [x] Video-Tutorial / onboarding → `onboarding.py` mit interaktivem Tutorial
 
 ---
 
