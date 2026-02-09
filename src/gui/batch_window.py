@@ -16,6 +16,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from .batch_panel import BatchPanel
+from .translations import tr
 import logging
 
 
@@ -121,7 +122,7 @@ class BatchWindow(QDialog):
     
     def __init__(self, parent, settings_getter):
         super().__init__(parent)
-        self.setWindowTitle("📦 Batch-Processing - V-SpeechFlow")
+        self.setWindowTitle(tr("batch_window_title"))
         self.setGeometry(150, 150, 900, 700)
         self.setModal(False)
         
@@ -153,18 +154,18 @@ class BatchWindow(QDialog):
         # Buttons
         button_layout = QHBoxLayout()
         
-        self.btn_start = QPushButton("▶️ Batch starten")
+        self.btn_start = QPushButton("▶️ " + tr("batch_btn_start"))
         self.btn_start.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold; padding: 10px;")
         self.btn_start.clicked.connect(self.start_batch)
         button_layout.addWidget(self.btn_start)
         
-        self.btn_stop = QPushButton("⏹️ Abbrechen")
+        self.btn_stop = QPushButton("⏹️ " + tr("batch_btn_cancel"))
         self.btn_stop.setStyleSheet("background-color: #f44336; color: white; font-weight: bold; padding: 10px;")
         self.btn_stop.setEnabled(False)
         self.btn_stop.clicked.connect(self.stop_batch)
         button_layout.addWidget(self.btn_stop)
         
-        self.btn_close = QPushButton("✕ Schließen")
+        self.btn_close = QPushButton("✕ " + tr("batch_btn_close"))
         self.btn_close.clicked.connect(self.close)
         button_layout.addWidget(self.btn_close)
         
@@ -177,7 +178,7 @@ class BatchWindow(QDialog):
         files = self.batch_panel.get_file_list()
         
         if not files:
-            QMessageBox.warning(self, "Keine Dateien", "Bitte fügen Sie mindestens eine Datei hinzu.")
+            QMessageBox.warning(self, tr("batch_no_files_window_title"), tr("batch_no_files_window_msg"))
             return
         
         # CLI-Argumente von Parent holen
@@ -191,7 +192,7 @@ class BatchWindow(QDialog):
                 cli_args.pop(input_index)  # Remove --input
             
         except Exception as e:
-            QMessageBox.critical(self, "Fehler", f"Fehler beim Erstellen der CLI-Argumente:\\n{str(e)}")
+            QMessageBox.critical(self, tr("batch_error_args_title"), f"{tr('batch_error_args_msg')}:\n{str(e)}")
             return
         
         # Batch-Optionen
@@ -221,8 +222,8 @@ class BatchWindow(QDialog):
         if self.batch_worker:
             reply = QMessageBox.question(
                 self,
-                "Batch abbrechen?",
-                "Möchten Sie das Batch-Processing wirklich abbrechen?",
+                tr("batch_cancel_confirm_title"),
+                tr("batch_cancel_confirm_msg"),
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.No
             )
@@ -255,10 +256,8 @@ class BatchWindow(QDialog):
         
         QMessageBox.information(
             self,
-            "Batch abgeschlossen",
-            f"Batch-Processing abgeschlossen!\\n\\n"
-            f"✅ Erfolgreich: {successful}\\n"
-            f"❌ Fehlgeschlagen: {failed}"
+            tr("batch_complete_title"),
+            tr("batch_complete_msg", success=successful, failed=failed)
         )
     
     def on_output(self, text: str):
@@ -273,8 +272,8 @@ class BatchWindow(QDialog):
         if self.is_processing:
             QMessageBox.warning(
                 self,
-                "Verarbeitung läuft",
-                "Batch-Processing läuft noch. Bitte warten Sie oder brechen Sie ab."
+                tr("batch_running_title"),
+                tr("batch_running_msg")
             )
             event.ignore()
         else:

@@ -44,7 +44,7 @@ class ModelPanel(QWidget):
         layout = QVBoxLayout(self)
         
         # Titel
-        title = QLabel("🤖 Whisper-Modell")
+        title = QLabel("🤖 " + tr("model_panel_title"))
         title_font = QFont()
         title_font.setPointSize(13)
         title_font.setBold(True)
@@ -52,7 +52,7 @@ class ModelPanel(QWidget):
         layout.addWidget(title)
         
         # Modell-Auswahl (Vorschläge)
-        layout.addWidget(QLabel("Schnellauswahl:"))
+        layout.addWidget(QLabel(tr("model_quick_select")))
         self.model_combo = QComboBox()
         self.populate_model_combo()
         self.model_combo.currentTextChanged.connect(self.on_model_combo_changed)
@@ -66,7 +66,7 @@ class ModelPanel(QWidget):
         layout.addWidget(self.model_details)
         
         # Manual Model Path
-        layout.addWidget(QLabel("Oder Modell-Datei selbst wählen:"))
+        layout.addWidget(QLabel(tr("model_or_custom")))
         
         path_layout = QHBoxLayout()
         self.model_path_input = QLineEdit()
@@ -76,7 +76,7 @@ class ModelPanel(QWidget):
         self.model_path_input.setToolTip(tr("tooltip_model_path"))
         path_layout.addWidget(self.model_path_input)
         
-        btn_browse = QPushButton("📂 Durchsuchen")
+        btn_browse = QPushButton("📂 " + tr("model_btn_browse"))
         btn_browse.clicked.connect(self.browse_model_file)
         btn_browse.setToolTip("Whisper-Modelldatei auswählen")
         path_layout.addWidget(btn_browse)
@@ -84,12 +84,12 @@ class ModelPanel(QWidget):
         layout.addLayout(path_layout)
         
         # Validierungs-Status
-        self.validation_status = QLabel("⏳ Validierung ausstehend")
+        self.validation_status = QLabel("⏳ " + tr("model_validation_pending"))
         self.validation_status.setStyleSheet("font-weight: bold; color: gray;")
         layout.addWidget(self.validation_status)
         
         # Model Info Box
-        info_group = QGroupBox("📋 Verfügbare Modelle")
+        info_group = QGroupBox("📋 " + tr("model_available_title"))
         info_layout = QVBoxLayout(info_group)
         
         # Scrollable Info
@@ -99,20 +99,33 @@ class ModelPanel(QWidget):
         info_widget = QWidget()
         info_widget_layout = QVBoxLayout(info_widget)
         
+        # Mapping von Dateinamen zu Translation Keys
+        model_translations = {
+            "ggml-base.bin": ("model_base_name", "model_base_desc"),
+            "ggml-small.bin": ("model_small_name", "model_small_desc"),
+            "ggml-medium.bin": ("model_medium_name", "model_medium_desc"),
+            "ggml-large-v3.bin": ("model_large_name", "model_large_desc"),
+        }
+        
         for filename, info in AVAILABLE_MODELS.items():
+            # Translation Keys holen
+            name_key, desc_key = model_translations.get(filename, (None, None))
+            
             # Model Header
-            header = QLabel(f"• {info['name']} ({info['size_mb']} MB)")
+            model_name = tr(name_key) if name_key else info['name']
+            header = QLabel(f"• {model_name} ({info['size_mb']} MB)")
             header.setStyleSheet("font-weight: bold;")
             info_widget_layout.addWidget(header)
             
             # Model Description
-            desc = QLabel(f"  {info['description']}")
+            model_desc = tr(desc_key) if desc_key else info['description']
+            desc = QLabel(f"  {model_desc}")
             desc.setStyleSheet("color: gray; font-size: 10px;")
             desc.setWordWrap(True)
             info_widget_layout.addWidget(desc)
             
             # Download Link
-            link = QLabel(f'  Dateiname: <a href="{info["url"]}"><code>{filename}</code></a>')
+            link = QLabel(f'  {tr("model_info_filename")} <a href="{info["url"]}"><code>{filename}</code></a>')
             link.setOpenExternalLinks(True)
             link.setStyleSheet("font-size: 10px;")
             info_widget_layout.addWidget(link)
@@ -127,10 +140,10 @@ class ModelPanel(QWidget):
         
         # Tipps
         tips = QLabel(
-            "💡 <b>Tipps:</b><br>"
-            "• <b>Small</b> (500MB): Empfohlen für Deutsche Sprache<br>"
-            "• <b>Medium</b> (1.5GB): Höhere Genauigkeit<br>"
-            "• Download von <a href=\"https://huggingface.co/ggerganov/whisper.cpp\">HuggingFace</a>"
+            f"💡 <b>{tr('model_tips_title')}</b><br>"
+            f"• <b>Small</b> (500MB): {tr('model_tips_small')}<br>"
+            f"• <b>Medium</b> (1.5GB): {tr('model_tips_medium')}<br>"
+            f"• {tr('model_tips_download')} <a href=\"https://huggingface.co/ggerganov/whisper.cpp\">HuggingFace</a>"
         )
         tips.setOpenExternalLinks(True)
         tips.setStyleSheet("color: gray; font-size: 10px;")
@@ -143,7 +156,7 @@ class ModelPanel(QWidget):
     def populate_model_combo(self):
         """Füllt die Model ComboBox mit Vorschlägen."""
         self.model_combo.clear()
-        self.model_combo.addItem("Schnellauswahl wählen...", None)
+        self.model_combo.addItem(tr("model_quick_select") + "...", None)
         
         for filename, info in AVAILABLE_MODELS.items():
             display_text = f"{info['name']} - {filename}"
@@ -167,7 +180,7 @@ class ModelPanel(QWidget):
         """Öffnet File-Dialog zur Modell-Auswahl."""
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Whisper-Modell wählen",
+            tr("wizard_model_browse_title"),
             str(Path.home()),
             "Whisper Model (ggml-*.bin);;Alle Dateien (*)"
         )
@@ -180,7 +193,7 @@ class ModelPanel(QWidget):
         model_path = self.model_path_input.text().strip()
         
         if not model_path:
-            self.validation_status.setText("⏳ Bitte Modell-Pfad eingeben")
+            self.validation_status.setText("⏳ " + tr("model_validation_pending"))
             self.validation_status.setStyleSheet("font-weight: bold; color: gray;")
             self.selected_model = None
             return
@@ -190,7 +203,7 @@ class ModelPanel(QWidget):
         
         if result['valid']:
             self.validation_status.setText(
-                f"✓ Modell gültig ({result['size_mb']} MB)"
+                f"{tr('model_validation_valid')} ({result['size_mb']} MB)"
             )
             self.validation_status.setStyleSheet("font-weight: bold; color: green;")
             self.selected_model = model_path

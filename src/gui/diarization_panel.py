@@ -51,7 +51,7 @@ class DiarizationPanel(QWidget):
         layout = QVBoxLayout(self)
         
         # Titel
-        title = QLabel("👥 Speaker Diarization")
+        title = QLabel("👥 " + tr("diarization_title"))
         title_font = QFont()
         title_font.setPointSize(13)
         title_font.setBold(True)
@@ -59,48 +59,48 @@ class DiarizationPanel(QWidget):
         layout.addWidget(title)
         
         # Aktivierungs-Checkbox
-        self.enable_checkbox = QCheckBox("Speaker Diarization aktivieren")
+        self.enable_checkbox = QCheckBox(tr("diarization_enable"))
         self.enable_checkbox.setChecked(False)
         self.enable_checkbox.stateChanged.connect(self.on_enable_changed)
         self.enable_checkbox.setToolTip(tr("tooltip_diarization"))
         layout.addWidget(self.enable_checkbox)
         
-        info = QLabel("💡 Erkennt und trennt verschiedene Sprecher im Audio")
+        info = QLabel("💡 " + tr("diarization_info"))
         info.setStyleSheet("color: gray; font-size: 11px;")
         info.setWordWrap(True)
         layout.addWidget(info)
         
         # === Diarization Settings Group (nur aktiv wenn enabled) ===
-        self.settings_group = QGroupBox("Diarization Einstellungen")
+        self.settings_group = QGroupBox(tr("diarization_settings"))
         self.settings_group.setEnabled(False)
         settings_layout = QVBoxLayout()
         
         # === Modus-Auswahl ===
-        mode_label = QLabel("Modus:")
+        mode_label = QLabel(tr("diarization_mode"))
         mode_label.setStyleSheet("font-weight: bold;")
         settings_layout.addWidget(mode_label)
         
         # Radio Buttons für Modus
         self.mode_group = QButtonGroup(self)
         
-        self.exact_radio = QRadioButton("Exakte Sprecheranzahl (--num-speakers)")
+        self.exact_radio = QRadioButton(tr("diarization_mode_exact"))
         self.exact_radio.setChecked(True)
         self.exact_radio.toggled.connect(self.on_mode_changed)
-        self.exact_radio.setToolTip("Genaue Anzahl der Sprecher angeben (empfohlen wenn bekannt)")
+        self.exact_radio.setToolTip(tr("diarization_mode_exact_tooltip"))
         self.mode_group.addButton(self.exact_radio, 1)
         settings_layout.addWidget(self.exact_radio)
         
         # Exakte Anzahl Input
         exact_layout = QHBoxLayout()
         exact_layout.addSpacing(30)
-        exact_layout.addWidget(QLabel("Anzahl Sprecher:"))
+        exact_layout.addWidget(QLabel(tr("diarization_num_speakers")))
         
         self.num_speakers_spinbox = QSpinBox()
         self.num_speakers_spinbox.setMinimum(2)
         self.num_speakers_spinbox.setMaximum(10)
         self.num_speakers_spinbox.setValue(2)
         self.num_speakers_spinbox.valueChanged.connect(self.emit_settings_changed)
-        self.num_speakers_spinbox.setToolTip("Genaue Anzahl der Sprecher im Audio")
+        self.num_speakers_spinbox.setToolTip(tr("diarization_num_speakers_tooltip"))
         exact_layout.addWidget(self.num_speakers_spinbox)
         exact_layout.addStretch()
         
@@ -108,9 +108,9 @@ class DiarizationPanel(QWidget):
         
         settings_layout.addSpacing(10)
         
-        self.auto_radio = QRadioButton("Auto-Erkennung mit Min/Max (--min-speakers, --max-speakers)")
+        self.auto_radio = QRadioButton(tr("diarization_mode_auto"))
         self.auto_radio.toggled.connect(self.on_mode_changed)
-        self.auto_radio.setToolTip("System erkennt Sprecher automatisch innerhalb der angegebenen Grenzen")
+        self.auto_radio.setToolTip(tr("diarization_mode_auto_tooltip"))
         self.mode_group.addButton(self.auto_radio, 2)
         settings_layout.addWidget(self.auto_radio)
         
@@ -118,30 +118,30 @@ class DiarizationPanel(QWidget):
         minmax_layout = QHBoxLayout()
         minmax_layout.addSpacing(30)
         
-        minmax_layout.addWidget(QLabel("Min:"))
+        minmax_layout.addWidget(QLabel(tr("diarization_min")))
         self.min_speakers_spinbox = QSpinBox()
         self.min_speakers_spinbox.setMinimum(1)
         self.min_speakers_spinbox.setMaximum(50)
         self.min_speakers_spinbox.setValue(1)
         self.min_speakers_spinbox.setEnabled(False)
         self.min_speakers_spinbox.valueChanged.connect(self.on_min_changed)
-        self.min_speakers_spinbox.setToolTip("Minimale Anzahl an Sprechern")
+        self.min_speakers_spinbox.setToolTip(tr("diarization_min_tooltip"))
         minmax_layout.addWidget(self.min_speakers_spinbox)
         
-        minmax_layout.addWidget(QLabel("Max:"))
+        minmax_layout.addWidget(QLabel(tr("diarization_max")))
         self.max_speakers_spinbox = QSpinBox()
         self.max_speakers_spinbox.setMinimum(1)
         self.max_speakers_spinbox.setMaximum(50)
         self.max_speakers_spinbox.setValue(5)
         self.max_speakers_spinbox.setEnabled(False)
         self.max_speakers_spinbox.valueChanged.connect(self.on_max_changed)
-        self.max_speakers_spinbox.setToolTip("Maximale Anzahl an Sprechern")
+        self.max_speakers_spinbox.setToolTip(tr("diarization_max_tooltip"))
         minmax_layout.addWidget(self.max_speakers_spinbox)
         
         minmax_layout.addStretch()
         settings_layout.addLayout(minmax_layout)
         
-        hint_minmax = QLabel("💡 System erkennt automatisch zwischen Min und Max Sprecher")
+        hint_minmax = QLabel("💡 " + tr("diarization_auto_hint"))
         hint_minmax.setStyleSheet("color: gray; font-size: 10px; margin-left: 30px;")
         hint_minmax.setWordWrap(True)
         settings_layout.addWidget(hint_minmax)
@@ -149,14 +149,11 @@ class DiarizationPanel(QWidget):
         settings_layout.addSpacing(10)
         
         # === HuggingFace Token ===
-        token_label = QLabel("HuggingFace Token:")
+        token_label = QLabel(tr("diarization_token_label"))
         token_label.setStyleSheet("font-weight: bold;")
         settings_layout.addWidget(token_label)
         
-        token_hint = QLabel(
-            "⚠️ Erforderlich für Speaker Diarization\n"
-            "Token erstellen: https://huggingface.co/settings/tokens"
-        )
+        token_hint = QLabel(tr("diarization_token_hint"))
         token_hint.setStyleSheet("color: #f57c00; font-size: 10px;")
         token_hint.setWordWrap(True)
         settings_layout.addWidget(token_hint)
@@ -164,7 +161,7 @@ class DiarizationPanel(QWidget):
         token_layout = QHBoxLayout()
         self.hf_token_input = QLineEdit()
         self.hf_token_input.setEchoMode(QLineEdit.EchoMode.Password)
-        self.hf_token_input.setPlaceholderText("hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+        self.hf_token_input.setPlaceholderText(tr("diarization_token_placeholder"))
         self.hf_token_input.textChanged.connect(self.on_token_changed)
         self.hf_token_input.setToolTip(tr("tooltip_hf_token"))
         token_layout.addWidget(self.hf_token_input)
@@ -173,27 +170,24 @@ class DiarizationPanel(QWidget):
         btn_show_token.setFixedWidth(40)
         btn_show_token.setCheckable(True)
         btn_show_token.toggled.connect(self.toggle_token_visibility)
-        btn_show_token.setToolTip("Token anzeigen/verbergen")
+        btn_show_token.setToolTip(tr("diarization_token_show_tooltip"))
         token_layout.addWidget(btn_show_token)
         
-        btn_load_keychain = QPushButton("🔑 Keychain")
+        btn_load_keychain = QPushButton("🔑 " + tr("diarization_btn_keychain"))
         btn_load_keychain.clicked.connect(self.load_token_from_keychain)
-        btn_load_keychain.setToolTip("Token aus macOS Keychain laden")
+        btn_load_keychain.setToolTip(tr("diarization_keychain_tooltip"))
         token_layout.addWidget(btn_load_keychain)
         
         settings_layout.addLayout(token_layout)
         
         # Token Status
-        self.token_status = QLabel("⏳ Token nicht eingegeben")
+        self.token_status = QLabel(tr("diarization_token_status_empty"))
         self.token_status.setStyleSheet("color: gray; font-size: 10px;")
         settings_layout.addWidget(self.token_status)
         
         # Keychain Hint (nur auf macOS)
         if is_mac():
-            keychain_hint = QLabel(
-                "💡 Token speichern (Terminal):\n"
-                "security add-generic-password -s HF_V-Speechflow -a user -w \"hf_xxx\""
-            )
+            keychain_hint = QLabel(tr("diarization_keychain_hint"))
             keychain_hint.setStyleSheet("color: black; font-size: 9px; background-color: #f5f5f5; padding: 5px; border-radius: 3px;")
             keychain_hint.setWordWrap(True)
             settings_layout.addWidget(keychain_hint)
@@ -239,10 +233,10 @@ class DiarizationPanel(QWidget):
         token = self.hf_token_input.text().strip()
         
         if not token:
-            self.token_status.setText("⏳ Token nicht eingegeben")
+            self.token_status.setText(tr("diarization_token_status_empty"))
             self.token_status.setStyleSheet("color: gray; font-size: 10px;")
         elif self.validate_token_format(token):
-            self.token_status.setText("✓ Token Format gültig")
+            self.token_status.setText(tr("diarization_token_status_valid"))
             self.token_status.setStyleSheet("color: green; font-size: 10px;")
         else:
             self.token_status.setText("⚠ Ungültiges Token Format (erwartet: hf_xxx)")
@@ -274,8 +268,8 @@ class DiarizationPanel(QWidget):
             self.hf_token_input.setText(token)
             QMessageBox.information(
                 self,
-                "✓ Token geladen",
-                "HuggingFace Token erfolgreich aus Keychain geladen!"
+                tr("diarization_token_loaded_title"),
+                tr("diarization_token_loaded_msg")
             )
         else:
             if is_mac():
@@ -296,9 +290,8 @@ class DiarizationPanel(QWidget):
             else:
                 QMessageBox.information(
                     self,
-                    "ℹ️ macOS erforderlich",
-                    "Die Keychain-Integration ist nur auf macOS verfügbar.\n\n"
-                    "Bitte geben Sie den Token manuell im Eingabefeld ein."
+                    tr("diarization_keychain_unavailable_title"),
+                    tr("diarization_keychain_unavailable_msg")
                 )
     
     def emit_settings_changed(self):

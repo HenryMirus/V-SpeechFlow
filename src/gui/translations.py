@@ -202,6 +202,24 @@ class TranslationManager:
             "tooltip_segments": "Fügt Zeitstempel zu jedem Segment hinzu",
             "tooltip_output_path": "Wo soll das Transkript gespeichert werden?",
             
+            # Model Panel Info
+            "model_available_title": "Verfügbare Modelle",
+            "model_info_filename": "Dateiname:",
+            "model_tips_title": "Tipps:",
+            "model_tips_small": "Empfohlen für Deutsche Sprache",
+            "model_tips_medium": "Höhere Genauigkeit",
+            "model_tips_download": "Download von",
+            
+            # Model Descriptions
+            "model_base_name": "Base (schnell)",
+            "model_base_desc": "Schnell, gutes Preis-Leistungs-Verhältnis für deutsches Audio",
+            "model_small_name": "Small (empfohlen)",
+            "model_small_desc": "Beste Balance für deutsche Sprache (EMPFOHLEN)",
+            "model_medium_name": "Medium (höhere Genauigkeit)",
+            "model_medium_desc": "Höhere Genauigkeit, benötigt mehr RAM (~2-3GB)",
+            "model_large_name": "Large v3 (beste Qualität)",
+            "model_large_desc": "Beste Genauigkeit, benötigt viel RAM (~4-6GB)",
+            
             # Main Window UI Elements
             "gui_title": "V-SpeechFlow GUI",
             "profile_label": "Profil:",
@@ -685,6 +703,24 @@ class TranslationManager:
             "tooltip_hf_token": "Required for Speaker Diarization - available on HuggingFace",
             "tooltip_segments": "Adds timestamps to each segment",
             "tooltip_output_path": "Where should the transcript be saved?",
+            
+            # Model Panel Info
+            "model_available_title": "Available Models",
+            "model_info_filename": "Filename:",
+            "model_tips_title": "Tips:",
+            "model_tips_small": "Recommended for German language",
+            "model_tips_medium": "Higher accuracy",
+            "model_tips_download": "Download from",
+            
+            # Model Descriptions
+            "model_base_name": "Base (fast)",
+            "model_base_desc": "Fast, good cost-performance ratio for German audio",
+            "model_small_name": "Small (recommended)",
+            "model_small_desc": "Best balance for German language (RECOMMENDED)",
+            "model_medium_name": "Medium (higher accuracy)",
+            "model_medium_desc": "Higher accuracy, requires more RAM (~2-3GB)",
+            "model_large_name": "Large v3 (best quality)",
+            "model_large_desc": "Best accuracy, requires a lot of RAM (~4-6GB)",
             
             # Main Window UI Elements
             "gui_title": "V-SpeechFlow GUI",

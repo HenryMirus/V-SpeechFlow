@@ -22,6 +22,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont, QDragEnterEvent, QDropEvent
+from .translations import tr
 
 
 class BatchPanel(QWidget):
@@ -44,19 +45,19 @@ class BatchPanel(QWidget):
         layout = QVBoxLayout(self)
         
         # Titel
-        title = QLabel("📦 Batch-Processing")
+        title = QLabel("📦 " + tr("batch_title"))
         title_font = QFont()
         title_font.setPointSize(13)
         title_font.setBold(True)
         title.setFont(title_font)
         layout.addWidget(title)
         
-        info = QLabel("Verarbeite mehrere Audio-Dateien nacheinander")
+        info = QLabel(tr("batch_info"))
         info.setStyleSheet("color: gray; font-size: 11px;")
         layout.addWidget(info)
         
         # Dateiliste Gruppe
-        file_group = QGroupBox("Dateiliste")
+        file_group = QGroupBox(tr("batch_file_list"))
         file_layout = QVBoxLayout()
         
         # Liste Widget
@@ -70,26 +71,26 @@ class BatchPanel(QWidget):
         # Buttons für Datei-Management
         file_buttons = QHBoxLayout()
         
-        btn_add_files = QPushButton("➕ Dateien hinzufügen")
+        btn_add_files = QPushButton("➕ " + tr("batch_btn_add_files"))
         btn_add_files.clicked.connect(self.add_files)
         file_buttons.addWidget(btn_add_files)
         
-        btn_add_folder = QPushButton("📁 Ordner hinzufügen")
+        btn_add_folder = QPushButton("📁 " + tr("batch_btn_add_folder"))
         btn_add_folder.clicked.connect(self.add_folder)
         file_buttons.addWidget(btn_add_folder)
         
-        btn_remove = QPushButton("➖ Entfernen")
+        btn_remove = QPushButton("➖ " + tr("batch_btn_remove"))
         btn_remove.clicked.connect(self.remove_selected)
         file_buttons.addWidget(btn_remove)
         
-        btn_clear = QPushButton("🗑️ Alle löschen")
+        btn_clear = QPushButton("🗑️ " + tr("batch_btn_clear"))
         btn_clear.clicked.connect(self.clear_all)
         file_buttons.addWidget(btn_clear)
         
         file_layout.addLayout(file_buttons)
         
         # Statistik
-        self.stats_label = QLabel("Dateien: 0 | Gesamt: 0 MB")
+        self.stats_label = QLabel(tr("batch_stats", count=0, size=0))
         self.stats_label.setStyleSheet("color: gray; font-size: 10px;")
         file_layout.addWidget(self.stats_label)
         
@@ -97,18 +98,18 @@ class BatchPanel(QWidget):
         layout.addWidget(file_group)
         
         # Optionen
-        options_group = QGroupBox("Batch-Optionen")
+        options_group = QGroupBox(tr("batch_options"))
         options_layout = QVBoxLayout()
         
-        self.stop_on_error_checkbox = QCheckBox("Bei Fehler abbrechen")
+        self.stop_on_error_checkbox = QCheckBox(tr("batch_stop_on_error"))
         self.stop_on_error_checkbox.setChecked(False)
         options_layout.addWidget(self.stop_on_error_checkbox)
         
-        self.create_subfolder_checkbox = QCheckBox("Ausgabe in Unterordner speichern")
+        self.create_subfolder_checkbox = QCheckBox(tr("batch_subfolder"))
         self.create_subfolder_checkbox.setChecked(True)
         options_layout.addWidget(self.create_subfolder_checkbox)
         
-        hint = QLabel("💡 Alle Dateien werden mit aktuellen Einstellungen verarbeitet")
+        hint = QLabel("💡 " + tr("batch_hint"))
         hint.setStyleSheet("color: gray; font-size: 10px;")
         hint.setWordWrap(True)
         options_layout.addWidget(hint)
@@ -117,10 +118,10 @@ class BatchPanel(QWidget):
         layout.addWidget(options_group)
         
         # Fortschritt
-        progress_group = QGroupBox("Fortschritt")
+        progress_group = QGroupBox(tr("batch_progress_title"))
         progress_layout = QVBoxLayout()
         
-        self.current_file_label = QLabel("Bereit...")
+        self.current_file_label = QLabel(tr("batch_status_ready"))
         self.current_file_label.setStyleSheet("font-size: 11px;")
         progress_layout.addWidget(self.current_file_label)
         
@@ -163,7 +164,7 @@ class BatchPanel(QWidget):
         """Öffnet Dialog zum Hinzufügen von Dateien."""
         files, _ = QFileDialog.getOpenFileNames(
             self,
-            "Audio-Dateien auswählen",
+            tr("batch_file_dialog_title"),
             "",
             f"Audio-Dateien ({' '.join(f'*.{fmt}' for fmt in self.SUPPORTED_FORMATS)});;Alle Dateien (*)"
         )
@@ -175,7 +176,7 @@ class BatchPanel(QWidget):
         """Öffnet Dialog zum Hinzufügen eines Ordners."""
         folder = QFileDialog.getExistingDirectory(
             self,
-            "Ordner auswählen"
+            tr("batch_folder_dialog_title")
         )
         
         if folder:
@@ -189,8 +190,8 @@ class BatchPanel(QWidget):
             else:
                 QMessageBox.information(
                     self,
-                    "Keine Dateien gefunden",
-                    f"Keine unterstützten Audio-Dateien im Ordner gefunden."
+                    tr("batch_no_files_title"),
+                    tr("batch_no_files_msg")
                 )
     
     def add_files_to_list(self, files: List[str]):
@@ -230,8 +231,8 @@ class BatchPanel(QWidget):
         
         reply = QMessageBox.question(
             self,
-            "Alle löschen?",
-            "Möchten Sie wirklich alle Dateien aus der Liste entfernen?",
+            tr("batch_clear_confirm_title"),
+            tr("batch_clear_confirm_msg"),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No
         )
@@ -249,7 +250,7 @@ class BatchPanel(QWidget):
                 total_size += Path(file_path).stat().st_size
         
         total_size_mb = total_size / 1024 / 1024
-        self.stats_label.setText(f"Dateien: {len(self.file_list)} | Gesamt: {total_size_mb:.1f} MB")
+        self.stats_label.setText(tr("batch_stats", count=len(self.file_list), size=f"{total_size_mb:.1f}"))
     
     def get_file_list(self) -> List[str]:
         """Gibt die Liste der Dateien zurück."""
@@ -277,7 +278,7 @@ class BatchPanel(QWidget):
         """Setzt den Fortschritt zurück."""
         self.batch_progress.setVisible(False)
         self.batch_progress.setValue(0)
-        self.current_file_label.setText("Bereit...")
+        self.current_file_label.setText(tr("batch_status_ready"))
     
     def set_enabled(self, enabled: bool):
         """Aktiviert/Deaktiviert die UI während Batch-Processing."""

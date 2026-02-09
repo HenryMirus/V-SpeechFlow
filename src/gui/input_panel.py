@@ -79,38 +79,38 @@ class InputPanel(QWidget):
         layout = QVBoxLayout(widget)
         
         # Titel
-        title = QLabel("Audio-Datei auswählen")
+        title = QLabel(tr("input_file_tab_title"))
         title.setStyleSheet("font-weight: bold; font-size: 13px;")
         layout.addWidget(title)
         
         # Datei-Pfad Display (mit Drag & Drop)
         self.file_path_display = QLineEdit()
         self.file_path_display.setReadOnly(True)
-        self.file_path_display.setPlaceholderText("Ziehe Datei hier hin oder klicke zum Auswählen...")
+        self.file_path_display.setPlaceholderText(tr("input_placeholder"))
         self.file_path_display.setDragEnabled(False)
         self.file_path_display.setToolTip(tr("tooltip_input_file"))
         
-        layout.addWidget(QLabel("Datei-Pfad:"))
+        layout.addWidget(QLabel(tr("input_file_path")))
         layout.addWidget(self.file_path_display)
         
         # Buttons
         btn_layout = QHBoxLayout()
         
-        btn_browse = QPushButton("📂 Durchsuchen")
+        btn_browse = QPushButton("📂 " + tr("input_btn_browse"))
         btn_browse.clicked.connect(self.open_file_dialog)
         btn_browse.setToolTip(tr("tooltip_input_file"))
         btn_layout.addWidget(btn_browse)
         
-        btn_clear = QPushButton("✕ Löschen")
+        btn_clear = QPushButton("✕ " + tr("input_btn_clear"))
         btn_clear.clicked.connect(self.clear_file_selection)
-        btn_clear.setToolTip("Dateiauswahl zurücksetzen")
+        btn_clear.setToolTip(tr("input_clear_tooltip"))
         btn_layout.addWidget(btn_clear)
         
         layout.addLayout(btn_layout)
         
         # Unterstützte Formate
         formats_label = QLabel(
-            f"✓ Unterstützte Formate: {', '.join(self.SUPPORTED_FORMATS).upper()}"
+            f"✓ {tr('input_formats_supported')}: {', '.join(self.SUPPORTED_FORMATS).upper()}"
         )
         formats_label.setStyleSheet("color: gray; font-size: 11px;")
         layout.addWidget(formats_label)
@@ -130,35 +130,35 @@ class InputPanel(QWidget):
         layout = QVBoxLayout(widget)
         
         # Titel
-        title = QLabel("Mikrofon-Aufnahme")
+        title = QLabel(tr("input_live_title"))
         title.setStyleSheet("font-weight: bold; font-size: 13px;")
         layout.addWidget(title)
         
         # Mikrofon-Auswahl
-        layout.addWidget(QLabel("Verfügbare Mikrofone:"))
+        layout.addWidget(QLabel(tr("input_available_mics")))
         
         mic_layout = QHBoxLayout()
         self.mic_combo = QComboBox()
-        self.mic_combo.addItem("🔍 Mikrofone werden geladen...")
+        self.mic_combo.addItem("🔍 " + tr("input_btn_refresh") + "...")
         self.mic_combo.setToolTip(tr("tooltip_input_live"))
         self.mic_combo.currentIndexChanged.connect(self.on_microphone_changed)
         mic_layout.addWidget(self.mic_combo)
         
-        btn_refresh = QPushButton("🔄 Aktualisieren")
+        btn_refresh = QPushButton("🔄 " + tr("input_btn_refresh"))
         btn_refresh.clicked.connect(self.refresh_devices)
-        btn_refresh.setToolTip("Mikrofonliste aktualisieren")
+        btn_refresh.setToolTip(tr("input_refresh_tooltip"))
         mic_layout.addWidget(btn_refresh)
         
         layout.addLayout(mic_layout)
         
         # Recording Status
-        layout.addWidget(QLabel("Recording Status:"))
-        self.recording_status = QLabel("🔴 Bereit")
+        layout.addWidget(QLabel(tr("input_recording_status")))
+        self.recording_status = QLabel("🔴 " + tr("input_status_ready"))
         self.recording_status.setStyleSheet("color: green; font-weight: bold;")
         layout.addWidget(self.recording_status)
         
         # Volume Meter
-        layout.addWidget(QLabel("Volume:"))
+        layout.addWidget(QLabel(tr("input_volume")))
         self.volume_bar = QProgressBar()
         self.volume_bar.setRange(0, 100)
         self.volume_bar.setValue(0)
@@ -167,23 +167,23 @@ class InputPanel(QWidget):
         # Recording Controls
         control_layout = QHBoxLayout()
         
-        self.btn_start_recording = QPushButton("▶️ Start Recording")
+        self.btn_start_recording = QPushButton("▶️ " + tr("input_btn_start"))
         self.btn_start_recording.clicked.connect(self.start_recording)
         self.btn_start_recording.setStyleSheet("background-color: #4CAF50; color: white; font-weight: bold;")
         self.btn_start_recording.setToolTip(tr("tooltip_input_live"))
         control_layout.addWidget(self.btn_start_recording)
         
-        self.btn_stop_recording = QPushButton("⏹️ Stop Recording")
+        self.btn_stop_recording = QPushButton("⏹️ " + tr("input_btn_stop"))
         self.btn_stop_recording.clicked.connect(self.stop_recording)
         self.btn_stop_recording.setEnabled(False)
         self.btn_stop_recording.setStyleSheet("background-color: #f44336; color: white; font-weight: bold;")
-        self.btn_stop_recording.setToolTip("Aufnahme beenden und Datei speichern")
+        self.btn_stop_recording.setToolTip(tr("input_stop_tooltip"))
         control_layout.addWidget(self.btn_stop_recording)
         
         layout.addLayout(control_layout)
         
         # Info
-        info = QLabel("💡 Recording wird als temporäre WAV-Datei gespeichert")
+        info = QLabel("💡 " + tr("input_recording_info"))
         info.setStyleSheet("color: gray; font-size: 11px;")
         layout.addWidget(info)
         
@@ -194,7 +194,7 @@ class InputPanel(QWidget):
         """Öffnet Datei-Dialog für Audio-Auswahl."""
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Audio-Datei wählen",
+            tr("input_file_dialog_title"),
             "",
             f"Audio-Dateien ({' '.join(f'*.{fmt}' for fmt in self.SUPPORTED_FORMATS)});;Alle Dateien (*)"
         )
@@ -208,11 +208,11 @@ class InputPanel(QWidget):
         
         # Validierung
         if not path.exists():
-            self.file_path_display.setText(f"❌ Datei nicht gefunden: {file_path}")
+            self.file_path_display.setText(f"❌ {tr('input_file_not_found')}: {file_path}")
             return
         
         if path.suffix.lower().lstrip('.') not in self.SUPPORTED_FORMATS:
-            self.file_path_display.setText(f"❌ Nicht unterstütztes Format: {path.suffix}")
+            self.file_path_display.setText(f"❌ {tr('input_format_not_supported')}: {path.suffix}")
             return
         
         self.selected_file = str(path)
@@ -223,7 +223,7 @@ class InputPanel(QWidget):
         """Löscht die Dateiauswahl."""
         self.selected_file = None
         self.file_path_display.clear()
-        self.file_path_display.setPlaceholderText("Ziehe Datei hier hin oder klicke zum Auswählen...")
+        self.file_path_display.setPlaceholderText(tr("input_placeholder"))
     
     def refresh_devices(self):
         """Aktualisiert die Liste der verfügbaren Mikrofone."""
@@ -240,8 +240,8 @@ class InputPanel(QWidget):
                 if error_device.get('is_permission_error'):
                     QMessageBox.warning(
                         self,
-                        "🔒 Mikrofonzugriff erforderlich",
-                        error_device.get('error', 'Mikrofonzugriff verwehrt')
+                        tr("input_mic_access_title"),
+                        error_device.get('error', tr("input_mic_access_title"))
                     )
             else:
                 for device in self.device_list:
@@ -325,8 +325,8 @@ class InputPanel(QWidget):
         if device_idx is None or device_idx < 0:
             QMessageBox.warning(
                 self,
-                "Kein Mikrofon",
-                "Bitte wählen Sie ein gültiges Mikrofon aus."
+                tr("input_mic_unavailable_title"),
+                tr("input_mic_unavailable_title")
             )
             return
         
@@ -361,8 +361,8 @@ class InputPanel(QWidget):
         except Exception as e:
             QMessageBox.critical(
                 self,
-                "Fehler",
-                f"Konnte Recording nicht starten:\n{str(e)}"
+                tr("msg_file_open_error_title"),
+                f"{tr('input_recording_error_title')}:\n{str(e)}"
             )
             self.is_recording = False
     
@@ -464,8 +464,8 @@ class InputPanel(QWidget):
         """Wird aufgerufen wenn ein Fehler auftritt."""
         QMessageBox.critical(
             self,
-            "Recording-Fehler",
-            f"Fehler während der Aufnahme:\n{error_msg}"
+            tr("input_recording_error_title"),
+            f"{tr('input_recording_error_title')}:\n{error_msg}"
         )
         
         self.is_recording = False
@@ -501,8 +501,8 @@ class InputPanel(QWidget):
         
         QMessageBox.information(
             self,
-            "Aufnahme beendet",
-            f"Recording erfolgreich gespeichert!\n\nDatei: {path.name}\nGröße: {size_mb:.1f} MB\n\n"
+            tr("input_recording_saved_title"),
+            f"{tr('input_recording_saved_msg')}\n\nDatei: {path.name}\nGröße: {size_mb:.1f} MB\n\n"
             f"Die Datei wurde automatisch als Input-Datei ausgewählt."
         )
     

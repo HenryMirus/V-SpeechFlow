@@ -56,7 +56,7 @@ class SettingsPanel(QWidget):
         layout = QVBoxLayout(self)
         
         # Titel
-        title = QLabel("⚙️ Verarbeitungs-Optionen")
+        title = QLabel("⚙️ " + tr("settings_title"))
         title_font = QFont()
         title_font.setPointSize(13)
         title_font.setBold(True)
@@ -64,7 +64,7 @@ class SettingsPanel(QWidget):
         layout.addWidget(title)
         
         # ===== Thread Configuration =====
-        thread_group = QGroupBox("🔧 Thread-Konfiguration")
+        thread_group = QGroupBox("🔧 " + tr("settings_thread_config"))
         thread_layout = QVBoxLayout()
         
         # CPU Info
@@ -72,14 +72,14 @@ class SettingsPanel(QWidget):
         cpu_count = self.system_info.get('cpu_count', 4)
         recommended = self.system_info.get('recommended_threads', 6)
         
-        cpu_info_text = f"💻 System: {cpu_brand} ({cpu_count} Kerne) | Empfohlen: {recommended} Threads"
+        cpu_info_text = "💻 " + tr("settings_cpu_info", brand=cpu_brand, count=cpu_count, rec=recommended)
         cpu_info = QLabel(cpu_info_text)
         cpu_info.setStyleSheet("color: gray; font-size: 11px;")
         thread_layout.addWidget(cpu_info)
         
         # Thread Slider + Spinner
         slider_layout = QHBoxLayout()
-        slider_layout.addWidget(QLabel("Threads:"))
+        slider_layout.addWidget(QLabel(tr("settings_threads")))
         
         self.thread_slider = NoScrollSlider(Qt.Orientation.Horizontal)
         self.thread_slider.setMinimum(1)
@@ -105,7 +105,7 @@ class SettingsPanel(QWidget):
         
         thread_layout.addLayout(slider_layout)
         
-        hint = QLabel("💡 Höhere Werte = mehr CPU-Last, aber schneller (M1: 6-8, M3 Pro: 8-10)")
+        hint = QLabel("💡 " + tr("settings_thread_hint"))
         hint.setStyleSheet("color: gray; font-size: 10px;")
         hint.setWordWrap(True)
         thread_layout.addWidget(hint)
@@ -114,11 +114,11 @@ class SettingsPanel(QWidget):
         layout.addWidget(thread_group)
         
         # ===== Language & Translation =====
-        lang_group = QGroupBox("🌍 Sprache & Übersetzung")
+        lang_group = QGroupBox("🌍 " + tr("settings_lang_translation"))
         lang_layout = QVBoxLayout()
         
         # Language Selection
-        lang_layout.addWidget(QLabel("Eingabe-Sprache:"))
+        lang_layout.addWidget(QLabel(tr("settings_input_language")))
         
         lang_combo_layout = QHBoxLayout()
         self.language_combo = QComboBox()
@@ -136,7 +136,7 @@ class SettingsPanel(QWidget):
         lang_layout.addLayout(lang_combo_layout)
         
         # Translation Checkbox
-        self.translate_checkbox = QCheckBox("Ins Englische übersetzen (--translate)")
+        self.translate_checkbox = QCheckBox(tr("settings_translate"))
         self.translate_checkbox.setChecked(False)
         self.translate_checkbox.stateChanged.connect(self.emit_settings_changed)
         self.translate_checkbox.setToolTip(tr("tooltip_translate"))
@@ -146,17 +146,17 @@ class SettingsPanel(QWidget):
         layout.addWidget(lang_group)
         
         # ===== Output Options =====
-        output_group = QGroupBox("📁 Output-Optionen")
+        output_group = QGroupBox("📁 " + tr("settings_output_options"))
         output_layout = QVBoxLayout()
         
         # Keep Temp
-        self.keep_temp_checkbox = QCheckBox("Temporäre WAV-Datei behalten (--keep-temp)")
+        self.keep_temp_checkbox = QCheckBox(tr("settings_keep_temp"))
         self.keep_temp_checkbox.setChecked(False)
         self.keep_temp_checkbox.stateChanged.connect(self.emit_settings_changed)
-        self.keep_temp_checkbox.setToolTip("Konvertierte WAV-Datei nach Verarbeitung nicht löschen")
+        self.keep_temp_checkbox.setToolTip(tr("settings_keep_temp_tooltip"))
         output_layout.addWidget(self.keep_temp_checkbox)
         
-        hint2 = QLabel("💡 Nützlich fürs Debugging oder wenn du die Original-WAV speichern möchtest")
+        hint2 = QLabel("💡 " + tr("settings_keep_temp_hint"))
         hint2.setStyleSheet("color: gray; font-size: 10px;")
         hint2.setWordWrap(True)
         output_layout.addWidget(hint2)
@@ -165,34 +165,34 @@ class SettingsPanel(QWidget):
         layout.addWidget(output_group)
         
         # ===== Advanced Options =====
-        advanced_group = QGroupBox("🔧 Erweiterte Optionen")
+        advanced_group = QGroupBox("🔧 " + tr("settings_advanced"))
         advanced_layout = QVBoxLayout()
         
         # Binary Path
-        advanced_layout.addWidget(QLabel("STT Binary Pfad (optional):"))
+        advanced_layout.addWidget(QLabel(tr("settings_binary_path")))
         
         binary_layout = QHBoxLayout()
         self.binary_path_input = QLineEdit()
-        self.binary_path_input.setPlaceholderText("Leer lassen für Auto-Detection (build/bin/stt_native)")
+        self.binary_path_input.setPlaceholderText(tr("settings_binary_placeholder"))
         self.binary_path_input.textChanged.connect(self.emit_settings_changed)
         self.binary_path_input.setToolTip("Pfad zum stt_native Binary (leer lassen für automatische Erkennung)")
         binary_layout.addWidget(self.binary_path_input)
         
         btn_browse_binary = QPushButton("📂")
         btn_browse_binary.setFixedWidth(40)
-        btn_browse_binary.setToolTip("Binary durchsuchen")
+        btn_browse_binary.setToolTip(tr("settings_binary_browse_tooltip"))
         btn_browse_binary.clicked.connect(self.browse_binary_path)
         binary_layout.addWidget(btn_browse_binary)
         
         btn_clear_binary = QPushButton("✕")
         btn_clear_binary.setFixedWidth(40)
-        btn_clear_binary.setToolTip("Pfad löschen (Auto-Detection)")
+        btn_clear_binary.setToolTip(tr("settings_binary_clear_tooltip"))
         btn_clear_binary.clicked.connect(lambda: self.binary_path_input.clear())
         binary_layout.addWidget(btn_clear_binary)
         
         advanced_layout.addLayout(binary_layout)
         
-        hint3 = QLabel("💡 Nur für Entwicklung/Debugging. Normalerweise automatisch erkannt.")
+        hint3 = QLabel("💡 " + tr("settings_binary_hint"))
         hint3.setStyleSheet("color: gray; font-size: 10px;")
         hint3.setWordWrap(True)
         advanced_layout.addWidget(hint3)
@@ -212,7 +212,7 @@ class SettingsPanel(QWidget):
         """Öffnet Dialog zur Auswahl des Binary-Pfads."""
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "STT Binary wählen",
+            tr("settings_binary_path"),
             "",
             "Executable Dateien (stt_native*);;Alle Dateien (*)"
         )

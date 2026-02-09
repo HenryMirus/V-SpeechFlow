@@ -24,6 +24,10 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QKeySequence, QShortcut, QAction
+from PyQt6.QtWidgets import QApplication
+import sys
+import os
+import subprocess
 from .input_panel import InputPanel
 from .model_panel import ModelPanel
 from .settings_panel import SettingsPanel
@@ -252,7 +256,7 @@ class MainWindow(QMainWindow):
     
     def on_file_selected(self, file_path: str):
         """Wird aufgerufen wenn eine Datei ausgewählt wird."""
-        self.statusBar().showMessage(f"Datei ausgewählt: {file_path}")
+        self.statusBar().showMessage(f"✓ {Path(file_path).name}")
     
     def load_startup_config(self):
         """
@@ -375,7 +379,7 @@ class MainWindow(QMainWindow):
                 if 'output' in profile_data:
                     self.output_panel.set_settings(profile_data['output'])
                 
-                self.statusBar().showMessage(f"Profil '{profile_name}' wiederhergestellt", 3000)
+                self.statusBar().showMessage(f"{tr('profile_label')} '{profile_name}' wiederhergestellt", 3000)
                 return
             else:
                 self.log_warning(f"Profil '{profile_name}' nicht gefunden")
@@ -1894,17 +1898,14 @@ class MainWindow(QMainWindow):
             self.log_info(f"Language already set to: {language}")
             return
         
-        # Sprache ändern
+        # Sprache in den Einstellungen speichern
         set_language(language)
         self.history_manager.save_user_preference('ui_language', language)
         
-        # UI-Texte aktualisieren
-        self.refresh_ui()
-        
-        # Sprach-Dropdown aktualisieren
-        self.update_language_combo()
-        
         self.log_info(f"Language changed to: {language}")
+        
+        # MessageBox anzeigen und App neu starten
+        self.restart_application(language)
     
     def refresh_ui(self):
         """Aktualisiert alle UI-Texte nach einem Sprachwechsel."""
@@ -2018,6 +2019,49 @@ class MainWindow(QMainWindow):
             self.output_panel.refresh_ui()
         
         self.log_info("UI-Texte aktualisiert")
+    
+    def restart_application(self, language: str):
+        """
+        Startet die Anwendung neu, um die Sprachänderung vollständig zu übernehmen.
+        
+        Args:
+            language: Die neue Sprache ("de" oder "en")
+        """
+        # Benachrichtigung anzeigen
+        language_names = {"de": "Deutsch", "en": "English"}
+        msg = QMessageBox(self)
+        msg.setIcon(QMessageBox.Icon.Information)
+        
+        if language == "de":
+            msg.setWindowTitle("App wird neu geladen")
+            msg.setText(f"Die Sprache wurde auf {language_names[language]} geändert.\n\nDie App wird jetzt neu gestartet.")
+        else:
+            msg.setWindowTitle("App will restart")
+            msg.setText(f"Language changed to {language_names[language]}.\n\nThe app will restart now.")
+        
+        msg.setStandardButtons(QMessageBox.StandardButton.Ok)
+        msg.exec()
+        
+        self.log_info(f"Restarting application with language: {language}")
+        
+        # Python-Interpreter und Arbeitsverzeichnis ermitteln
+        python = sys.executable
+        
+        # Erstelle den Neustart-Befehl: python -m src.gui.app
+        # Dies funktioniert unabhängig davon, wie die App ursprünglich gestartet wurde
+        restart_cmd = [python, "-m", "src.gui.app"]
+        
+        # Working Directory ermitteln (Projekt-Root)
+        # Falls wir im src/gui Verzeichnis sind, gehen wir zwei Ebenen hoch
+        cwd = os.getcwd()
+        
+        self.log_info(f"Restart command: {' '.join(restart_cmd)} in {cwd}")
+        
+        # Neuen Prozess im Hintergrund starten
+        subprocess.Popen(restart_cmd, cwd=cwd)
+        
+        # Aktuellen Prozess beenden
+        QApplication.quit()
     
     def on_language_combo_changed(self, index: int):
         """Wird aufgerufen wenn die Sprache im Dropdown geändert wird."""
