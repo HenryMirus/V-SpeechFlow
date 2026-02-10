@@ -20,6 +20,7 @@ from PyQt6.QtWidgets import (
     QProgressBar,
     QLineEdit,
     QMessageBox,
+    QSizePolicy,
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QDragEnterEvent, QDropEvent, QDragLeaveEvent, QIcon
@@ -71,7 +72,11 @@ class InputPanel(QWidget):
         self.tabs.addTab(self.create_batch_tab(), "📦 " + tr("input_batch_tab"))
         
         layout.addWidget(self.tabs)
+        layout.addStretch()  # Drückt das Panel auf Minimalgröße zusammen
         self.setLayout(layout)
+        
+        # Size Policy: Panel nimmt nur minimal benötigten Platz ein
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Maximum)
     
     def create_file_tab(self):
         """Erstellt den Tab für Datei-Auswahl."""
