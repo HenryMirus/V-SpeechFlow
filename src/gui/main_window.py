@@ -1544,8 +1544,8 @@ class MainWindow(QMainWindow):
         # Dialog für Profil-Name
         name, ok = QInputDialog.getText(
             self,
-            "Profil speichern",
-            "Profil-Name eingeben:"
+            tr('main_profile_save_title'),
+            tr('main_profile_save_prompt')
         )
         
         if not ok or not name:
@@ -1607,16 +1607,16 @@ class MainWindow(QMainWindow):
         if self.profile_manager.is_default_profile(profile_name):
             QMessageBox.warning(
                 self,
-                "Fehler",
-                "Standard-Profile können nicht gelöscht werden."
+                tr('main_error'),
+                tr('msg_default_profile_no_delete')
             )
             return
         
         # Bestätigung
         reply = QMessageBox.question(
             self,
-            "Profil löschen?",
-            f"Möchten Sie das Profil '{profile_name}' wirklich löschen?",
+            tr('msg_delete_profile_title'),
+            tr('msg_delete_profile', name=profile_name),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No
         )
@@ -1626,10 +1626,10 @@ class MainWindow(QMainWindow):
                 self.refresh_profile_list()
                 self.update_profile_menus()
                 self.profile_combo.setCurrentIndex(0)
-                QMessageBox.information(self, "Erfolg", f"Profil '{profile_name}' wurde gelöscht.")
+                QMessageBox.information(self, tr('msg_profile_deleted_title'), tr('msg_profile_deleted', name=profile_name))
                 self.log_info(f"Profil gelöscht: {profile_name}")
             else:
-                QMessageBox.critical(self, "Fehler", f"Profil '{profile_name}' konnte nicht gelöscht werden.")
+                QMessageBox.critical(self, tr('main_error'), tr('msg_profile_delete_error', name=profile_name))
                 self.log_error(f"Fehler beim Löschen von Profil: {profile_name}")
     
     def duplicate_selected_profile(self):
@@ -1637,7 +1637,7 @@ class MainWindow(QMainWindow):
         current_text = self.profile_combo.currentText()
         
         if current_text.startswith("--"):
-            QMessageBox.information(self, "Info", "Kein Profil zum Duplizieren ausgewählt.")
+            QMessageBox.information(self, tr('main_info'), tr('msg_no_profile_selected'))
             return
         
         # Entferne Stern
@@ -1646,8 +1646,8 @@ class MainWindow(QMainWindow):
         # Neuen Namen eingeben
         new_name, ok = QInputDialog.getText(
             self,
-            "Profil duplizieren",
-            f"Neuer Name für die Kopie von '{source_name}':",
+            tr('main_profile_duplicate_title'),
+            tr('main_profile_duplicate_prompt', name=source_name),
             text=f"{source_name} (Kopie)"
         )
         
@@ -1659,10 +1659,10 @@ class MainWindow(QMainWindow):
                 index = self.profile_combo.findText(new_name, Qt.MatchFlag.MatchContains)
                 if index >= 0:
                     self.profile_combo.setCurrentIndex(index)
-                QMessageBox.information(self, "Erfolg", f"Profil wurde als '{new_name}' dupliziert.")
+                QMessageBox.information(self, tr('msg_profile_duplicated_title'), tr('msg_profile_duplicated', name=new_name))
                 self.log_info(f"Profil dupliziert: {source_name} -> {new_name}")
             else:
-                QMessageBox.critical(self, "Fehler", "Profil konnte nicht dupliziert werden.")
+                QMessageBox.critical(self, tr('main_error'), tr('msg_profile_duplicate_error'))
     
     def show_profile_menu(self):
         """Zeigt ein Kontextmenü für Profile-Optionen."""
@@ -1704,12 +1704,12 @@ class MainWindow(QMainWindow):
             if self.profile_manager.mark_as_favorite(profile_name):
                 self.log_info(f"Profil als Favorit markiert: {profile_name}")
             else:
-                QMessageBox.warning(self, "Fehler", "Profil konnte nicht als Favorit markiert werden.")
+                QMessageBox.warning(self, tr('main_error'), tr('msg_favorite_mark_error'))
         else:
             if self.profile_manager.unmark_as_favorite(profile_name):
                 self.log_info(f"Favoriten-Markierung entfernt: {profile_name}")
             else:
-                QMessageBox.warning(self, "Fehler", "Favoriten-Markierung konnte nicht entfernt werden.")
+                QMessageBox.warning(self, tr('main_error'), tr('msg_favorite_unmark_error'))
         
         self.refresh_profile_list()
         self.update_favorites_menu()
@@ -1720,7 +1720,7 @@ class MainWindow(QMainWindow):
         current_text = self.profile_combo.currentText()
         
         if current_text.startswith("--"):
-            QMessageBox.information(self, "Info", "Kein Profil zum Exportieren ausgewählt.")
+            QMessageBox.information(self, tr('main_info'), tr('msg_no_profile_to_export'))
             return
         
         profile_name = current_text.replace("⭐ ", "")
@@ -1729,26 +1729,26 @@ class MainWindow(QMainWindow):
         from PyQt6.QtWidgets import QFileDialog
         file_path, _ = QFileDialog.getSaveFileName(
             self,
-            "Profil exportieren",
+            tr('menu_profiles_export'),
             f"{profile_name}.json",
-            "JSON Dateien (*.json)"
+            tr('main_json_files_filter')
         )
         
         if file_path:
             if self.profile_manager.export_profile(profile_name, Path(file_path)):
-                QMessageBox.information(self, "Erfolg", f"Profil wurde exportiert nach:\n{file_path}")
+                QMessageBox.information(self, tr('msg_profile_exported_title'), tr('msg_profile_exported', path=file_path))
                 self.log_info(f"Profil exportiert: {profile_name} -> {file_path}")
             else:
-                QMessageBox.critical(self, "Fehler", "Profil konnte nicht exportiert werden.")
+                QMessageBox.critical(self, tr('main_error'), tr('msg_profile_export_error'))
     
     def import_profile(self):
         """Importiert ein Profil aus einer JSON-Datei."""
         from PyQt6.QtWidgets import QFileDialog
         file_path, _ = QFileDialog.getOpenFileName(
             self,
-            "Profil importieren",
+            tr('menu_profiles_import'),
             "",
-            "JSON Dateien (*.json)"
+            tr('main_json_files_filter')
         )
         
         if file_path:
@@ -1761,10 +1761,10 @@ class MainWindow(QMainWindow):
                 index = self.profile_combo.findText(profile_name, Qt.MatchFlag.MatchContains)
                 if index >= 0:
                     self.profile_combo.setCurrentIndex(index)
-                QMessageBox.information(self, "Erfolg", f"Profil '{profile_name}' wurde importiert.")
+                QMessageBox.information(self, tr('msg_profile_imported_title'), tr('msg_profile_imported', name=profile_name))
                 self.log_info(f"Profil importiert: {file_path} -> {profile_name}")
             else:
-                QMessageBox.critical(self, "Fehler", "Profil konnte nicht importiert werden.\nÜberprüfen Sie die Datei.")
+                QMessageBox.critical(self, tr('main_error'), tr('msg_profile_import_error'))
     
     def update_profile_menus(self):
         """Aktualisiert alle Profil-Menüs (Favoriten+Standard und Alle)."""
@@ -1904,9 +1904,8 @@ class MainWindow(QMainWindow):
         """Bietet das Onboarding an (falls noch nicht absolviert)."""
         reply = QMessageBox.question(
             self,
-            "Tutorial verfügbar",
-            "Möchten Sie ein kurzes Tutorial durchlaufen?\n\n"
-            "Es erklärt die wichtigsten Funktionen von V-SpeechFlow.",
+            tr('msg_tutorial_available_title'),
+            tr('msg_tutorial_available'),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
         
@@ -2060,17 +2059,10 @@ class MainWindow(QMainWindow):
             language: Die neue Sprache ("de" oder "en")
         """
         # Benachrichtigung anzeigen
-        language_names = {"de": "Deutsch", "en": "English"}
         msg = QMessageBox(self)
         msg.setIcon(QMessageBox.Icon.Information)
-        
-        if language == "de":
-            msg.setWindowTitle("App wird neu geladen")
-            msg.setText(f"Die Sprache wurde auf {language_names[language]} geändert.\n\nDie App wird jetzt neu gestartet.")
-        else:
-            msg.setWindowTitle("App will restart")
-            msg.setText(f"Language changed to {language_names[language]}.\n\nThe app will restart now.")
-        
+        msg.setWindowTitle(tr("msg_restart_app_title"))
+        msg.setText(tr("msg_restart_app_text"))
         msg.setStandardButtons(QMessageBox.StandardButton.Ok)
         msg.exec()
         
@@ -2150,11 +2142,8 @@ class MainWindow(QMainWindow):
         
         reply = QMessageBox.question(
             self,
-            "Model-Update verfügbar",
-            f"Ein Update für das Modell '{model_name}' ist verfügbar.\n\n"
-            f"Lokale Version: {local_size} MB\n"
-            f"Neue Version: {remote_size} MB\n\n"
-            "Möchten Sie die Download-Seite öffnen?",
+            tr('msg_model_update_title'),
+            tr('msg_model_update', name=model_name, local=local_size, remote=remote_size),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
         
@@ -2169,8 +2158,8 @@ class MainWindow(QMainWindow):
         if self.is_processing:
             reply = QMessageBox.question(
                 self,
-                "Transkription läuft",
-                "Eine Transkription ist noch aktiv. Wirklich beenden?",
+                tr('msg_close_window_title'),
+                tr('msg_close_window'),
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.No
             )

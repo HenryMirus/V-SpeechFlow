@@ -275,17 +275,8 @@ class DiarizationPanel(QWidget):
             if is_mac():
                 QMessageBox.warning(
                     self,
-                    "⚠️ Token nicht gefunden",
-                    "Der HuggingFace Token wurde nicht in der macOS Keychain gefunden.\n\n"
-                    "**Mögliche Ursachen:**\n"
-                    "• Kein Token wurde gespeichert\n"
-                    "• Der Token wurde unter einem anderen Service-Namen gespeichert\n"
-                    "• Fehler beim Zugriff auf die Keychain\n\n"
-                    "**Lösung:**\n"
-                    "Speichern Sie den Token mit folgendem Terminal-Befehl:\n\n"
-                    "security add-generic-password -s HF_V-Speechflow -a user -w \"hf_xxxx\"\n\n"
-                    "Ersetzen Sie dabei \"hf_xxxx\" mit Ihrem echten Token.\n\n"
-                    "Alternativ können Sie den Token auch manuell oben eingeben."
+                    tr("diarization_keychain_unavailable_title"),
+                    tr("diarization_keychain_hint")
                 )
             else:
                 QMessageBox.information(

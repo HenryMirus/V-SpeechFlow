@@ -117,11 +117,11 @@
 - [ ] Intuitivere UI/UX
   - [ ] Logische Reihenfolge
   - [ ] Ausklappbare Menüs
-  - [ ] Hilfe-Fenster
+  - [ ] Hilfe-Fenster mit Tastenkürzeln
   - [x] Menubar
   - [x] Hell-Dunkel-Theme schalter
   - [x] Funktionierendes Umschalten zwischen DE und EN der UI
-  - [ ] Warning bei diarization mit mehr als 10 Personen, dass Mikrofon limitierender Faktor ist
+  - [x] Warning bei diarization mit mehr als 10 Personen, dass Mikrofon limitierender Faktor ist
 - [x] Onboarding visuell fixen = automatisches "scrollen" um dem Onboarding zu folgen
 - [x] Onboarding Fenster schließen = überspringnen / rausklicken und scrollen in der app ermöglichen
 - [x] Batch-Fenster einblenden und testen

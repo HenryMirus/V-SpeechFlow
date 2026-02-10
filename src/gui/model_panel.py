@@ -29,6 +29,14 @@ from .model_utils import (
 )
 
 
+class NonScrollableComboBox(QComboBox):
+    """ComboBox die nicht mit dem Mausrad scrollbar ist."""
+    
+    def wheelEvent(self, event):
+        """Ignoriert Scroll-Events."""
+        event.ignore()
+
+
 class ModelPanel(QWidget):
     """Panel für Modell-Auswahl und Validierung."""
     
@@ -53,7 +61,7 @@ class ModelPanel(QWidget):
         
         # Modell-Auswahl (Vorschläge)
         layout.addWidget(QLabel(tr("model_quick_select")))
-        self.model_combo = QComboBox()
+        self.model_combo = NonScrollableComboBox()
         self.populate_model_combo()
         self.model_combo.currentTextChanged.connect(self.on_model_combo_changed)
         self.model_combo.setToolTip(tr("tooltip_model_path"))

@@ -391,25 +391,21 @@ class InputPanel(QWidget):
             self.hf_token_input.setText(token)
             QMessageBox.information(
                 self,
-                "✓ Token geladen",
-                "HuggingFace Token erfolgreich aus Keychain geladen!"
+                tr('diarization_token_loaded_title'),
+                tr('diarization_token_loaded_msg')
             )
         else:
             if is_mac():
                 QMessageBox.information(
                     self,
-                    "ℹ️ Token nicht gefunden",
-                    "Token nicht im Keychain gespeichert.\n\n"
-                    "Um den Token zu speichern, führen Sie in der Terminal aus:\n\n"
-                    "security add-generic-password -s HF_V-Speechflow -a user -w \"hf_xxxx\"\n\n"
-                    "Alternativ können Sie den Token oben manuell eingeben."
+                    tr('diarization_keychain_unavailable_title'),
+                    tr('diarization_keychain_hint')
                 )
             else:
                 QMessageBox.information(
                     self,
-                    "ℹ️ macOS nur",
-                    "Keychain-Integration ist nur auf macOS verfügbar.\n"
-                    "Bitte geben Sie den Token manuell ein."
+                    tr('diarization_keychain_unavailable_title'),
+                    tr('diarization_keychain_unavailable_msg')
                 )
     
     def get_hf_token(self) -> str:
@@ -487,7 +483,7 @@ class InputPanel(QWidget):
         path = Path(wav_path)
         size_mb = path.stat().st_size / 1024 / 1024
         
-        self.recording_status.setText(f"✅ Gespeichert: {path.name} ({size_mb:.1f}MB)")
+        self.recording_status.setText("✅ Gespeichert: {path.name} ({size_mb:.1f}MB)")
         self.recording_status.setStyleSheet("color: green; font-weight: bold;")
         
         # UI zurücksetzen
