@@ -111,7 +111,15 @@ class MainWindow(QMainWindow):
         self.title_label.setStyleSheet("font-size: 19px; font-weight: bold;")
         left_layout.addWidget(self.title_label)
         
-        # Profile-Auswahl
+        # 1. Input Panel
+        self.input_panel = InputPanel()
+        self.input_panel.set_history_manager(self.history_manager)
+        self.input_panel.file_selected.connect(self.on_file_selected)
+        self.input_panel.recording_started.connect(self.on_recording_started)
+        self.input_panel.recording_stopped.connect(self.on_recording_stopped)
+        left_layout.addWidget(self.input_panel)
+        
+        # 2. Profile-Auswahl
         profile_layout = QHBoxLayout()
         self.profile_label = QLabel("📁 " + tr("profile_label"))
         profile_layout.addWidget(self.profile_label)
@@ -149,33 +157,25 @@ class MainWindow(QMainWindow):
         
         left_layout.addLayout(profile_layout)
         
-        # Input Panel
-        self.input_panel = InputPanel()
-        self.input_panel.set_history_manager(self.history_manager)
-        self.input_panel.file_selected.connect(self.on_file_selected)
-        self.input_panel.recording_started.connect(self.on_recording_started)
-        self.input_panel.recording_stopped.connect(self.on_recording_stopped)
-        left_layout.addWidget(self.input_panel)
-        
-        # Model Panel
+        # 3. Model Panel
         self.model_panel = ModelPanel()
         self.model_panel.model_selected.connect(self.on_model_selected)
         left_layout.addWidget(self.model_panel)
         
-        # Settings Panel
-        self.settings_panel = SettingsPanel()
-        self.settings_panel.settings_changed.connect(self.on_settings_changed)
-        left_layout.addWidget(self.settings_panel)
-        
-        # Diarization Panel
+        # 4. Diarization Panel
         self.diarization_panel = DiarizationPanel()
         self.diarization_panel.diarization_changed.connect(self.on_diarization_changed)
         left_layout.addWidget(self.diarization_panel)
         
-        # Output Panel
+        # 5. Output Panel
         self.output_panel = OutputPanel()
         self.output_panel.output_changed.connect(self.on_output_changed)
         left_layout.addWidget(self.output_panel)
+        
+        # 6. Settings Panel (Weitere Einstellungen / Verarbeitungsoptionen)
+        self.settings_panel = SettingsPanel()
+        self.settings_panel.settings_changed.connect(self.on_settings_changed)
+        left_layout.addWidget(self.settings_panel)
         
         left_layout.addStretch()
         self.left_scroll.setWidget(left_panel)

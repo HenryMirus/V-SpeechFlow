@@ -117,7 +117,7 @@
 - [ ] Intuitivere UI/UX
   - [ ] Logische Reihenfolge
   - [ ] Ausklappbare Menüs
-  - [ ] Hilfe-Fenster mit Tastenkürzeln
+  - [x] Hilfe-Fenster mit Tastenkürzeln
   - [x] Menubar
   - [x] Hell-Dunkel-Theme schalter
   - [x] Funktionierendes Umschalten zwischen DE und EN der UI
