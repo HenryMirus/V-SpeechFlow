@@ -115,8 +115,8 @@
 
 ## **Verbesserungen**
 - [ ] Intuitivere UI/UX
-  - [ ] Logische Reihenfolge
-  - [ ] Ausklappbare Menüs
+  - [x] Logische Reihenfolge
+  - [x] Ausklappbare Menüs
   - [x] Hilfe-Fenster mit Tastenkürzeln
   - [x] Menubar
   - [x] Hell-Dunkel-Theme schalter

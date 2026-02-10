@@ -27,9 +27,15 @@ class ProfileManager:
     
     def _create_default_profiles(self) -> Dict[str, dict]:
         """Erstellt vordefinierte Standard-Profile."""
+        # Dynamischer Pfad zum models Ordner
+        models_dir = Path(__file__).parent.parent.parent / "models" / "ggml-small.bin"
+        
         return {
             "Leiterrunde": {
                 "description": "Optimiert für Meetings mit mehreren Sprechern",
+                "model": {
+                    "model_path": str(models_dir),
+                },
                 "settings": {
                     "threads": 6,
                     "language": "de",
@@ -259,9 +265,10 @@ class ProfileManager:
         # Kopie erstellen
         new_profile = {
             'description': f"Kopie von {source_name}",
-            'settings': source_profile['settings'].copy(),
-            'diarization': source_profile['diarization'].copy(),
-            'output': source_profile['output'].copy(),
+            'model': source_profile.get('model', {}).copy(),
+            'settings': source_profile.get('settings', {}).copy(),
+            'diarization': source_profile.get('diarization', {}).copy(),
+            'output': source_profile.get('output', {}).copy(),
         }
         
         return self.save_profile(new_name, new_profile)

@@ -34,19 +34,40 @@ class OutputPanel(QWidget):
     def __init__(self):
         super().__init__()
         self.selected_output_path = None
+        self.is_expanded = False
         self.init_ui()
     
     def init_ui(self):
         """Initialisiert die UI."""
-        layout = QVBoxLayout(self)
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
         
-        # Titel
+        # Titel mit Toggle-Button
+        title_layout = QHBoxLayout()
+        title_layout.setContentsMargins(0, 5, 0, 5)
+        
+        # Toggle-Button
+        self.toggle_button = QPushButton("▶")
+        self.toggle_button.setFixedWidth(25)
+        self.toggle_button.setToolTip("Bereich ein-/ausblenden")
+        self.toggle_button.clicked.connect(self.toggle_content)
+        title_layout.addWidget(self.toggle_button)
+        
+        # Titel-Label
         title = QLabel("📝 " + tr("output_title"))
         title_font = QFont()
         title_font.setPointSize(13)
         title_font.setBold(True)
         title.setFont(title_font)
-        layout.addWidget(title)
+        title_layout.addWidget(title)
+        title_layout.addStretch()
+        main_layout.addLayout(title_layout)
+        
+        # Content Container
+        self.content_widget = QWidget()
+        self.content_widget.setVisible(False)  # Standardmäßig eingeklappt
+        layout = QVBoxLayout(self.content_widget)
+        layout.setContentsMargins(10, 5, 0, 5)
         
         # === Ausgabedatei ===
         output_group = QGroupBox(tr("output_file_group"))
@@ -164,7 +185,10 @@ class OutputPanel(QWidget):
         layout.addWidget(extra_group)
         
         layout.addStretch()
-        self.setLayout(layout)
+        
+        # Content-Widget zum Main-Layout hinzufügen
+        main_layout.addWidget(self.content_widget)
+        self.setLayout(main_layout)
     
     def browse_output_file(self):
         """Öffnet Dialog zur Auswahl des Ausgabepfads."""
@@ -354,3 +378,9 @@ Diarization: 2 Sprecher
             enabled: True um Auto-Open zu aktivieren, False zum Deaktivieren
         """
         self.auto_open_checkbox.setChecked(enabled)
+    
+    def toggle_content(self):
+        """Toggle zwischen expanded/collapsed."""
+        self.is_expanded = not self.is_expanded
+        self.content_widget.setVisible(self.is_expanded)
+        self.toggle_button.setText("▼" if self.is_expanded else "▶")

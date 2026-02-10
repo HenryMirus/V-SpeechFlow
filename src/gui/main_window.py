@@ -21,9 +21,10 @@ from PyQt6.QtWidgets import (
     QInputDialog,
     QMenu,
     QSizePolicy,
+    QGroupBox,
 )
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QKeySequence, QShortcut, QAction
+from PyQt6.QtGui import QKeySequence, QShortcut, QAction, QFont
 from PyQt6.QtWidgets import QApplication
 import sys
 import os
@@ -119,10 +120,22 @@ class MainWindow(QMainWindow):
         self.input_panel.recording_stopped.connect(self.on_recording_stopped)
         left_layout.addWidget(self.input_panel)
         
-        # 2. Profile-Auswahl
+        # === Überschrift: Transkriptionseinstellungen ===
+        left_layout.addSpacing(15)
+        transcription_title = QLabel("📝 Transkriptionseinstellungen")
+        transcription_font = QFont()
+        transcription_font.setPointSize(14)
+        transcription_font.setBold(True)
+        transcription_title.setFont(transcription_font)
+        left_layout.addWidget(transcription_title)
+        left_layout.addSpacing(5)
+        
+        # 2. Profile-Auswahl (in GroupBox)
+        self.profile_group = QGroupBox("📁 " + tr("profile_label"))
+        self.profile_group.setStyleSheet("QGroupBox { font-weight: bold; padding-top: 10px; font-size: 13pt; }")
+        profile_group_layout = QVBoxLayout()
+        
         profile_layout = QHBoxLayout()
-        self.profile_label = QLabel("📁 " + tr("profile_label"))
-        profile_layout.addWidget(self.profile_label)
         
         self.profile_combo = QComboBox()
         self.profile_combo.addItem(tr("profile_current_unsaved"))
@@ -155,7 +168,9 @@ class MainWindow(QMainWindow):
         btn_profile_menu.clicked.connect(self.show_profile_menu)
         profile_layout.addWidget(btn_profile_menu)
         
-        left_layout.addLayout(profile_layout)
+        profile_group_layout.addLayout(profile_layout)
+        self.profile_group.setLayout(profile_group_layout)
+        left_layout.addWidget(self.profile_group)
         
         # 3. Model Panel
         self.model_panel = ModelPanel()
@@ -1589,6 +1604,10 @@ class MainWindow(QMainWindow):
             self.log_warning(f"Profil nicht gefunden: {profile_name}")
             return
         
+        # Model laden
+        if 'model' in profile:
+            self.model_panel.set_settings(profile['model'])
+        
         # Settings laden
         if 'settings' in profile:
             self.settings_panel.set_settings(profile['settings'])
@@ -1626,6 +1645,7 @@ class MainWindow(QMainWindow):
         # Sammle aktuelle Einstellungen
         profile = {
             "description": f"Benutzerdefiniertes Profil, erstellt am {datetime.now().strftime('%d.%m.%Y %H:%M')}",
+            "model": self.model_panel.get_settings(),
             "settings": self.settings_panel.get_settings(),
             "diarization": self.diarization_panel.get_settings(),
             "output": self.output_panel.get_settings(),
@@ -2010,7 +2030,7 @@ class MainWindow(QMainWindow):
         self.title_label.setText(tr("gui_title"))
         
         # Profile Section
-        self.profile_label.setText("📁 " + tr("profile_label"))
+        self.profile_group.setTitle("📁 " + tr("profile_label"))
         
         # Profile Combo Box - erste Item
         current_text = self.profile_combo.currentText()

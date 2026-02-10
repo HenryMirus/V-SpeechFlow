@@ -49,19 +49,40 @@ class SettingsPanel(QWidget):
     def __init__(self):
         super().__init__()
         self.system_info = get_system_info()
+        self.is_expanded = False
         self.init_ui()
     
     def init_ui(self):
         """Initialisiert die UI."""
-        layout = QVBoxLayout(self)
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
         
-        # Titel
+        # Titel mit Toggle-Button
+        title_layout = QHBoxLayout()
+        title_layout.setContentsMargins(0, 5, 0, 5)
+        
+        # Toggle-Button
+        self.toggle_button = QPushButton("▶")
+        self.toggle_button.setFixedWidth(25)
+        self.toggle_button.setToolTip("Bereich ein-/ausblenden")
+        self.toggle_button.clicked.connect(self.toggle_content)
+        title_layout.addWidget(self.toggle_button)
+        
+        # Titel-Label
         title = QLabel("⚙️ " + tr("settings_title"))
         title_font = QFont()
         title_font.setPointSize(13)
         title_font.setBold(True)
         title.setFont(title_font)
-        layout.addWidget(title)
+        title_layout.addWidget(title)
+        title_layout.addStretch()
+        main_layout.addLayout(title_layout)
+        
+        # Content Container
+        self.content_widget = QWidget()
+        self.content_widget.setVisible(False)  # Standardmäßig eingeklappt
+        layout = QVBoxLayout(self.content_widget)
+        layout.setContentsMargins(10, 5, 0, 5)
         
         # ===== Thread Configuration =====
         thread_group = QGroupBox("🔧 " + tr("settings_thread_config"))
@@ -164,61 +185,16 @@ class SettingsPanel(QWidget):
         output_group.setLayout(output_layout)
         layout.addWidget(output_group)
         
-        # ===== Advanced Options =====
-        advanced_group = QGroupBox("🔧 " + tr("settings_advanced"))
-        advanced_layout = QVBoxLayout()
-        
-        # Binary Path
-        advanced_layout.addWidget(QLabel(tr("settings_binary_path")))
-        
-        binary_layout = QHBoxLayout()
-        self.binary_path_input = QLineEdit()
-        self.binary_path_input.setPlaceholderText(tr("settings_binary_placeholder"))
-        self.binary_path_input.textChanged.connect(self.emit_settings_changed)
-        self.binary_path_input.setToolTip("Pfad zum stt_native Binary (leer lassen für automatische Erkennung)")
-        binary_layout.addWidget(self.binary_path_input)
-        
-        btn_browse_binary = QPushButton("📂")
-        btn_browse_binary.setFixedWidth(40)
-        btn_browse_binary.setToolTip(tr("settings_binary_browse_tooltip"))
-        btn_browse_binary.clicked.connect(self.browse_binary_path)
-        binary_layout.addWidget(btn_browse_binary)
-        
-        btn_clear_binary = QPushButton("✕")
-        btn_clear_binary.setFixedWidth(40)
-        btn_clear_binary.setToolTip(tr("settings_binary_clear_tooltip"))
-        btn_clear_binary.clicked.connect(lambda: self.binary_path_input.clear())
-        binary_layout.addWidget(btn_clear_binary)
-        
-        advanced_layout.addLayout(binary_layout)
-        
-        hint3 = QLabel("💡 " + tr("settings_binary_hint"))
-        hint3.setStyleSheet("color: gray; font-size: 10px;")
-        hint3.setWordWrap(True)
-        advanced_layout.addWidget(hint3)
-        
-        advanced_group.setLayout(advanced_layout)
-        layout.addWidget(advanced_group)
-        
         layout.addStretch()
-        self.setLayout(layout)
+        
+        # Content-Widget zum Main-Layout hinzufügen
+        main_layout.addWidget(self.content_widget)
+        self.setLayout(main_layout)
     
     def emit_settings_changed(self):
         """Emittiert Signal mit aktuellen Settings."""
         settings = self.get_settings()
         self.settings_changed.emit(settings)
-    
-    def browse_binary_path(self):
-        """Öffnet Dialog zur Auswahl des Binary-Pfads."""
-        file_path, _ = QFileDialog.getOpenFileName(
-            self,
-            tr("settings_binary_path"),
-            "",
-            "Executable Dateien (stt_native*);;Alle Dateien (*)"
-        )
-        
-        if file_path:
-            self.binary_path_input.setText(file_path)
     
     def get_settings(self) -> dict:
         """Gibt alle aktuellen Einstellungen zurück."""
@@ -227,7 +203,6 @@ class SettingsPanel(QWidget):
             'language': self.language_combo.currentData(),
             'translate': self.translate_checkbox.isChecked(),
             'keep_temp': self.keep_temp_checkbox.isChecked(),
-            'binary_path': self.binary_path_input.text().strip(),
         }
     
     def set_settings(self, settings: dict):
@@ -245,9 +220,6 @@ class SettingsPanel(QWidget):
         
         if 'keep_temp' in settings:
             self.keep_temp_checkbox.setChecked(settings['keep_temp'])
-        
-        if 'binary_path' in settings:
-            self.binary_path_input.setText(settings['binary_path'])
     
     def set_threads(self, threads: int):
         """
@@ -261,3 +233,9 @@ class SettingsPanel(QWidget):
         threads = max(1, min(cpu_count, threads))
         # Setze beide Widgets (sie sind bereits miteinander verbunden)
         self.thread_spinbox.setValue(threads)
+    
+    def toggle_content(self):
+        """Toggle zwischen expanded/collapsed."""
+        self.is_expanded = not self.is_expanded
+        self.content_widget.setVisible(self.is_expanded)
+        self.toggle_button.setText("▼" if self.is_expanded else "▶")

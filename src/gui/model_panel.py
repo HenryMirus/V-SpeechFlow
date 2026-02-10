@@ -45,19 +45,41 @@ class ModelPanel(QWidget):
     def __init__(self):
         super().__init__()
         self.selected_model = None
+        self.is_expanded = False
+        self.is_model_info_expanded = False
         self.init_ui()
     
     def init_ui(self):
         """Initialisiert die UI."""
-        layout = QVBoxLayout(self)
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
         
-        # Titel
+        # Titel mit Toggle-Button
+        title_layout = QHBoxLayout()
+        title_layout.setContentsMargins(0, 5, 0, 5)
+        
+        # Toggle-Button
+        self.toggle_button = QPushButton("▶")
+        self.toggle_button.setFixedWidth(25)
+        self.toggle_button.setToolTip("Bereich ein-/ausblenden")
+        self.toggle_button.clicked.connect(self.toggle_content)
+        title_layout.addWidget(self.toggle_button)
+        
+        # Titel-Label
         title = QLabel("🤖 " + tr("model_panel_title"))
         title_font = QFont()
         title_font.setPointSize(13)
         title_font.setBold(True)
         title.setFont(title_font)
-        layout.addWidget(title)
+        title_layout.addWidget(title)
+        title_layout.addStretch()
+        main_layout.addLayout(title_layout)
+        
+        # Content Container
+        self.content_widget = QWidget()
+        self.content_widget.setVisible(False)  # Standardmäßig eingeklappt
+        layout = QVBoxLayout(self.content_widget)
+        layout.setContentsMargins(10, 5, 0, 5)
         
         # Modell-Auswahl (Vorschläge)
         layout.addWidget(QLabel(tr("model_quick_select")))
@@ -96,8 +118,30 @@ class ModelPanel(QWidget):
         self.validation_status.setStyleSheet("font-weight: bold; color: gray;")
         layout.addWidget(self.validation_status)
         
-        # Model Info Box
-        info_group = QGroupBox("📋 " + tr("model_available_title"))
+        # Model Info Box mit Toggle
+        model_info_container_layout = QVBoxLayout()
+        
+        # Toggle-Header für Model Info
+        model_info_header_layout = QHBoxLayout()
+        model_info_header_layout.setContentsMargins(0, 5, 0, 5)
+        
+        self.model_info_toggle_button = QPushButton("▶")
+        self.model_info_toggle_button.setFixedWidth(25)
+        self.model_info_toggle_button.setToolTip("Verfügbare Modelle ein-/ausblenden")
+        self.model_info_toggle_button.clicked.connect(self.toggle_model_info)
+        model_info_header_layout.addWidget(self.model_info_toggle_button)
+        
+        model_info_title = QLabel("📋 " + tr("model_available_title"))
+        model_info_title.setStyleSheet("font-weight: bold;")
+        model_info_header_layout.addWidget(model_info_title)
+        model_info_header_layout.addStretch()
+        
+        model_info_container_layout.addLayout(model_info_header_layout)
+        
+        # Model Info Box (Content)
+        info_group = QGroupBox()
+        info_group.setVisible(False)  # Standardmäßig eingeklappt
+        self.model_info_content = info_group
         info_layout = QVBoxLayout(info_group)
         
         # Scrollable Info
@@ -144,7 +188,8 @@ class ModelPanel(QWidget):
         scroll.setWidget(info_widget)
         info_layout.addWidget(scroll)
         
-        layout.addWidget(info_group)
+        model_info_container_layout.addWidget(info_group)
+        layout.addLayout(model_info_container_layout)
         
         # Tipps
         tips = QLabel(
@@ -159,7 +204,10 @@ class ModelPanel(QWidget):
         layout.addWidget(tips)
         
         layout.addStretch()
-        self.setLayout(layout)
+        
+        # Content-Widget zum Main-Layout hinzufügen
+        main_layout.addWidget(self.content_widget)
+        self.setLayout(main_layout)
     
     def populate_model_combo(self):
         """Füllt die Model ComboBox mit Vorschlägen."""
@@ -248,3 +296,38 @@ class ModelPanel(QWidget):
             Der Pfad aus dem model_path_input Feld
         """
         return self.model_path_input.text().strip()
+    
+    def get_settings(self) -> dict:
+        """
+        Gibt die aktuellen Model-Einstellungen zurück.
+        
+        Returns:
+            Dict mit model_path
+        """
+        return {
+            "model_path": self.get_model_path(),
+        }
+    
+    def set_settings(self, settings: dict):
+        """
+        Setzt die Model-Einstellungen aus einem Dict.
+        
+        Args:
+            settings: Dict mit model_path
+        """
+        if isinstance(settings, dict) and "model_path" in settings:
+            model_path = settings.get("model_path")
+            if model_path:
+                self.set_model_path(model_path)
+    
+    def toggle_content(self):
+        """Toggle zwischen expanded/collapsed."""
+        self.is_expanded = not self.is_expanded
+        self.content_widget.setVisible(self.is_expanded)
+        self.toggle_button.setText("▼" if self.is_expanded else "▶")
+    
+    def toggle_model_info(self):
+        """Toggle für die verfügbaren Modelle."""
+        self.is_model_info_expanded = not self.is_model_info_expanded
+        self.model_info_content.setVisible(self.is_model_info_expanded)
+        self.model_info_toggle_button.setText("▼" if self.is_model_info_expanded else "▶")

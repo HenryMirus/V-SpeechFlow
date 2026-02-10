@@ -157,7 +157,7 @@ class OnboardingManager:
         print("OnboardingManager: Fertig initialisiert")
     
     def create_steps(self):
-        """Erstellt die Onboarding-Schritte."""
+        """Erstellt die Onboarding-Schritte in neuer Reihenfolge."""
         # Schritt 0: Willkommen
         self.steps.append(OnboardingStep(
             tr("onboarding_welcome_step"),
@@ -189,18 +189,18 @@ class OnboardingManager:
             tab_index=2  # Batch Tab
         ))
         
-        # Schritt 4: Model Panel
+        # Schritt 4: Profile
+        self.steps.append(OnboardingStep(
+            tr("onboarding_profiles_detailed_title"),
+            tr("onboarding_profiles_detailed_text"),
+            self.main_window.profile_combo if hasattr(self.main_window, 'profile_combo') else None
+        ))
+        
+        # Schritt 5: Model Panel
         self.steps.append(OnboardingStep(
             tr("onboarding_model_selection_title"),
             tr("onboarding_model_selection_text"),
             self.main_window.model_panel if hasattr(self.main_window, 'model_panel') else None
-        ))
-        
-        # Schritt 5: Settings Panel
-        self.steps.append(OnboardingStep(
-            tr("onboarding_settings_title"),
-            tr("onboarding_settings_text"),
-            self.main_window.settings_panel if hasattr(self.main_window, 'settings_panel') else None
         ))
         
         # Schritt 6: Diarization Panel
@@ -217,11 +217,11 @@ class OnboardingManager:
             self.main_window.output_panel if hasattr(self.main_window, 'output_panel') else None
         ))
         
-        # Schritt 8: Profile
+        # Schritt 8: Settings Panel
         self.steps.append(OnboardingStep(
-            tr("onboarding_profiles_detailed_title"),
-            tr("onboarding_profiles_detailed_text"),
-            self.main_window.profile_combo if hasattr(self.main_window, 'profile_combo') else None
+            tr("onboarding_settings_title"),
+            tr("onboarding_settings_text"),
+            self.main_window.settings_panel if hasattr(self.main_window, 'settings_panel') else None
         ))
         
         # Schritt 9: Start Button
@@ -273,7 +273,7 @@ class OnboardingManager:
         
         step = self.steps[index]
         
-        print(f"\\n=== Showing step {index + 1}/{len(self.steps)} ===")
+        print(f"\n=== Showing step {index + 1}/{len(self.steps)} ===")
         print(f"Title: {step.title}")
         print(f"Target widget: {step.target_widget.__class__.__name__ if step.target_widget else 'None'}")
         print(f"Tab index: {step.tab_index}")
@@ -288,6 +288,9 @@ class OnboardingManager:
         
         # Vorheriges Highlight entfernen
         self._clear_widget_highlight()
+        
+        # Panels kollabieren/expandieren basierend auf Schritt
+        self._manage_panels_for_step(index, step)
         
         # Neues Highlight setzen
         if step.target_widget:
@@ -453,6 +456,56 @@ class OnboardingManager:
             self.dialog.raise_()
             # NICHT activateWindow() - blockiert unter macOS!
     
+    def _manage_panels_for_step(self, step_index: int, step: OnboardingStep):
+        """
+        Verwaltet das Expandieren/Kollabieren von Panels basierend auf dem aktuellen Schritt.
+        
+        Step-Reihenfolge:
+        0: Willkommen
+        1: Live-Recording (Input Panel)
+        2: File Tab (Input Panel)
+        3: Batch Processing (Input Panel)
+        4: Profile
+        5: Model Panel
+        6: Diarization Panel
+        7: Output Panel
+        8: Settings Panel
+        9: Start Button
+        """
+        # Panel-Zuordnung: Schritt-Index -> Panel-Objekt
+        panel_mapping = {
+            1: ('input_panel', None),  # Live (nicht kollabierbar, immer sichtbar)
+            2: ('input_panel', None),  # File Tab (nicht kollabierbar, immer sichtbar)
+            3: ('input_panel', None),  # Batch (nicht kollabierbar, immer sichtbar)
+            4: ('profile_combo', None),  # Profile (nicht kollabierbar, nur Combobox)
+            5: ('model_panel', 'toggle_content'),  # Model Panel
+            6: ('diarization_panel', 'toggle_content'),  # Diarization Panel
+            7: ('output_panel', 'toggle_content'),  # Output Panel
+            8: ('settings_panel', 'toggle_content'),  # Settings Panel
+            9: ('btn_start', None),  # Start Button (nicht kollabierbar)
+        }
+        
+        # Alle kollapsiblen Panels kollabieren
+        for step_idx, (panel_name, toggle_method) in panel_mapping.items():
+            if toggle_method and hasattr(self.main_window, panel_name):
+                panel = getattr(self.main_window, panel_name)
+                # Panel nur kollabieren, wenn es nicht der aktuelle Schritt ist und expandiert ist
+                if step_idx != step_index and hasattr(panel, 'is_expanded'):
+                    if panel.is_expanded:
+                        panel.toggle_content()  # Kollabieren
+                        print(f"Collapsed panel: {panel_name}")
+        
+        # Aktuelles Panel expandieren (wenn es eines hat)
+        if step_index in panel_mapping:
+            panel_name, toggle_method = panel_mapping[step_index]
+            if toggle_method and hasattr(self.main_window, panel_name):
+                panel = getattr(self.main_window, panel_name)
+                # Panel nur expandieren, wenn es nicht bereits expandiert ist
+                if hasattr(panel, 'is_expanded'):
+                    if not panel.is_expanded:
+                        panel.toggle_content()  # Expandieren
+                        print(f"Expanded panel: {panel_name}") 
+    
     def next_step(self):
         """Geht zum nächsten Schritt."""
         if self.current_step_index < len(self.steps) - 1:
@@ -487,6 +540,23 @@ class OnboardingManager:
         """Beendet das Onboarding."""
         # Highlight entfernen
         self._clear_widget_highlight()
+        
+        # Alle Panels kollabieren (aufräumen)
+        if hasattr(self.main_window, 'model_panel') and hasattr(self.main_window.model_panel, 'is_expanded'):
+            if self.main_window.model_panel.is_expanded:
+                self.main_window.model_panel.toggle_content()
+        
+        if hasattr(self.main_window, 'diarization_panel') and hasattr(self.main_window.diarization_panel, 'is_expanded'):
+            if self.main_window.diarization_panel.is_expanded:
+                self.main_window.diarization_panel.toggle_content()
+        
+        if hasattr(self.main_window, 'output_panel') and hasattr(self.main_window.output_panel, 'is_expanded'):
+            if self.main_window.output_panel.is_expanded:
+                self.main_window.output_panel.toggle_content()
+        
+        if hasattr(self.main_window, 'settings_panel') and hasattr(self.main_window.settings_panel, 'is_expanded'):
+            if self.main_window.settings_panel.is_expanded:
+                self.main_window.settings_panel.toggle_content()
         
         # Dialog aufräumen
         if self.dialog:
