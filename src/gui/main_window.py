@@ -76,6 +76,9 @@ class MainWindow(QMainWindow):
         
         # Time-Estimator für Fortschritts-Berechnung
         self.progress_tracker = ProgressTracker()
+
+        # Diarization warning: nur einmal pro Transkription
+        self.diarization_warning_shown = False
         
         # Sprache laden und setzen
         saved_language = self.history_manager.get_user_preference('ui_language', 'de')
@@ -435,6 +438,7 @@ class MainWindow(QMainWindow):
     
     def on_diarization_changed(self, settings: dict):
         """Wird aufgerufen wenn sich Diarization Settings ändern."""
+        self.maybe_show_diarization_warning(settings)
         if settings.get('enabled'):
             mode = settings.get('mode', 'exact')
             if mode == 'exact':
@@ -446,6 +450,30 @@ class MainWindow(QMainWindow):
                 self.statusBar().showMessage(f"Diarization: {min_s}-{max_s} Sprecher (Auto)")
         else:
             self.statusBar().showMessage("Diarization: Deaktiviert")
+
+    def maybe_show_diarization_warning(self, settings: dict):
+        """Zeigt einmalig eine Warnung bei >10 Sprechern (pro Transkription)."""
+        if self.diarization_warning_shown:
+            return
+        if not settings.get('enabled'):
+            return
+
+        if settings.get('mode') == 'exact':
+            speaker_count = settings.get('num_speakers')
+        else:
+            speaker_count = settings.get('max_speakers')
+
+        if speaker_count and speaker_count > 10:
+            QMessageBox.information(
+                self,
+                tr("diarization_warning_title"),
+                tr("diarization_warning_msg")
+            )
+            self.diarization_warning_shown = True
+
+    def reset_diarization_warning(self):
+        """Setzt den einmaligen Diarization-Warnhinweis zurück."""
+        self.diarization_warning_shown = False
     
     def on_output_changed(self, settings: dict):
         """Wird aufgerufen wenn sich Output Settings ändern."""
@@ -1157,6 +1185,9 @@ class MainWindow(QMainWindow):
         
         # Progress Tracker zurücksetzen
         self.progress_tracker.reset()
+
+        # Warnung nach Transkription zurücksetzen
+        self.reset_diarization_warning()
         
         if return_code == 0:
             # Erfolg
@@ -1351,6 +1382,7 @@ class MainWindow(QMainWindow):
     def on_batch_file_finished(self, filepath: str, success: bool, message: str):
         """Wird aufgerufen wenn eine Datei fertig ist."""
         self.log_info(f"Batch-Datei fertig: {filepath} - {message}")
+        self.reset_diarization_warning()
     
     def on_batch_finished(self, successful: int, failed: int):
         """Wird aufgerufen wenn Batch fertig ist."""

@@ -51,12 +51,19 @@ class AppReloader(FileSystemEventHandler):
 
 
 def main():
-    # Python aus dem venv verwenden
-    venv_python = Path(__file__).parent / ".venv" / "bin" / "python3"
+    # Python aus dem venv verwenden (Cross-platform)
+    venv_dir = Path(__file__).parent / ".venv"
+    
+    # Windows vs Unix
+    if sys.platform == "win32":
+        venv_python = venv_dir / "Scripts" / "python.exe"
+    else:
+        venv_python = venv_dir / "bin" / "python3"
     
     if not venv_python.exists():
-        print("❌ Fehler: .venv nicht gefunden!")
-        print("Führe erst aus: python3 -m venv .venv")
+        print("❌ Fehler: .venv nicht gefunden oder Python nicht vorhanden!")
+        print("Führe erst aus: python -m venv .venv")
+        print(f"Erwartet: {venv_python}")
         return 1
     
     command = [str(venv_python), "-m", "src.gui.app"]

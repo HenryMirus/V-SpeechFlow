@@ -97,7 +97,7 @@ class DiarizationPanel(QWidget):
         
         self.num_speakers_spinbox = QSpinBox()
         self.num_speakers_spinbox.setMinimum(2)
-        self.num_speakers_spinbox.setMaximum(10)
+        self.num_speakers_spinbox.setMaximum(50)
         self.num_speakers_spinbox.setValue(2)
         self.num_speakers_spinbox.valueChanged.connect(self.emit_settings_changed)
         self.num_speakers_spinbox.setToolTip(tr("diarization_num_speakers_tooltip"))

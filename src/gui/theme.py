@@ -149,11 +149,29 @@ class ThemeManager:
             
             QCheckBox, QRadioButton {
                 color: #333333;
+                spacing: 8px;
             }
             
             QCheckBox::indicator, QRadioButton::indicator {
                 width: 18px;
                 height: 18px;
+                background-color: #ffffff;
+                border: 2px solid #4CAF50;
+                border-radius: 3px;
+            }
+            
+            QCheckBox::indicator:hover, QRadioButton::indicator:hover {
+                background-color: #f0f8f0;
+                border: 2px solid #45a049;
+            }
+            
+            QCheckBox::indicator:checked {
+                background-color: #4CAF50;
+                image: url(:/icons/check.png);
+            }
+            
+            QRadioButton::indicator:checked {
+                background-color: #4CAF50;
             }
             
             QProgressBar {

@@ -306,6 +306,10 @@ class HistoryManager:
         self.history_data["user_preferences"][key] = value
         self._save_history()
     
+    def set_user_preference(self, key: str, value):
+        """Alias für save_user_preference (setzen statt speichern)."""
+        self.save_user_preference(key, value)
+    
     def get_user_preference(self, key: str, default=None):
         """Gibt eine User-Preference zurück."""
         return self.history_data.get("user_preferences", {}).get(key, default)
