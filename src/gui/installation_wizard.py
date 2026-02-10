@@ -81,7 +81,7 @@ class WizardPage(QWidget):
 class WelcomePage(WizardPage):
     """Willkommensseite des Wizards mit Sprachauswahl."""
     
-    def __init__(self, history_manager: HistoryManager = None):
+    def __init__(self, history_manager: HistoryManager = None, wizard=None):
         # Bilinguale Willkommensnachricht
         bilingual_title = "🌍 Willkommen / Welcome"
         bilingual_description = (
@@ -100,8 +100,9 @@ class WelcomePage(WizardPage):
         
         super().__init__(bilingual_title, bilingual_description)
         
-        # Speichere history_manager für späteren Zugriff
+        # Speichere Referenzen für späteren Zugriff
         self.history_manager = history_manager
+        self._wizard = wizard
         
         # Lade bereits gespeicherte Sprache aus user_preferences
         saved_language = None
@@ -149,12 +150,11 @@ class WelcomePage(WizardPage):
         # Speichere Sprache sofort in user_preferences (nicht in initial_config)
         if self.history_manager:
             self.history_manager.save_user_preference('ui_language', language)
-            print(f"✓ Sprache '{language}' in user_preferences gespeichert")
+            print(f"✓ Language '{language}' saved to user_preferences")
         
         # Informiere den Wizard über die Sprachänderung
-        wizard = self.parent().parent()  # QStackedWidget -> InstallationWizard
-        if isinstance(wizard, InstallationWizard):
-            wizard.on_language_changed()
+        if self._wizard is not None:
+            self._wizard.on_language_changed()
     
     def get_data(self) -> dict:
         """Gibt die gewählte Sprache zurück."""
@@ -301,7 +301,7 @@ class PreferencesPage(WizardPage):
         saved_check_updates = True
         
         if history_manager:
-            saved_theme = history_manager.get_app_setting("preferred_theme")
+            saved_theme = history_manager.get_user_preference("preferred_theme")
             saved_threads = history_manager.get_app_setting("default_threads")
             saved_auto_open = history_manager.get_user_preference("auto_open_transcript", False)
             saved_check_updates = history_manager.get_user_preference("check_model_updates", True)
@@ -420,26 +420,26 @@ class InstallationWizard(QDialog):
         
         # Verwende übergebenen HistoryManager oder erstelle neuen
         if history_manager is not None:
-            print("✓ Wizard verwendet übergebenen HistoryManager")
+            print("✓ Wizard using provided HistoryManager")
             self.history_manager = history_manager
         else:
-            print("⚠ Wizard erstellt eigenen HistoryManager")
-            self.history_manager = HistoryManager()
+            print("✓ Wizard using singleton HistoryManager")
+            self.history_manager = HistoryManager.get_instance()
         
         # Stelle sicher, dass History-Datei und Verzeichnis existieren
         self.history_manager.history_dir.mkdir(parents=True, exist_ok=True)
         
-        print(f"📁 History-Datei: {self.history_manager.history_file}")
-        print(f"📊 Vor Wizard - first_run: {self.history_manager.is_first_run()}, wizard_completed: {self.history_manager.is_wizard_completed()}")
+        print(f"📁 History file: {self.history_manager.history_file}")
+        print(f"📊 Before wizard - first_run: {self.history_manager.is_first_run()}, wizard_completed: {self.history_manager.is_wizard_completed()}")
         
         self.collected_data = {}
         self.wizard_is_first_run = self.history_manager.is_first_run()
         
         # Sobald der Wizard startet, ist es kein erster Start mehr
         if self.wizard_is_first_run:
-            print("=== Wizard startet zum ersten Mal - setze first_run auf False ===")
+            print("=== Wizard starting for first time - setting first_run to False ===")
             self.history_manager.save_app_setting("first_run", False)
-            print(f"📊 Nach first_run=False - Status: {self.history_manager.is_first_run()}")
+            print(f"📊 After first_run=False - Status: {self.history_manager.is_first_run()}")
         
         self.init_ui()
     
@@ -451,7 +451,7 @@ class InstallationWizard(QDialog):
         self.pages = QStackedWidget()
         
         # Seiten hinzufügen (mit History-Manager für gespeicherte Werte)
-        self.welcome_page = WelcomePage(self.history_manager)
+        self.welcome_page = WelcomePage(self.history_manager, wizard=self)
         self.model_page = ModelPage(self.history_manager)
         self.token_page = TokenPage()
         self.preferences_page = PreferencesPage(self.history_manager)
@@ -496,7 +496,7 @@ class InstallationWizard(QDialog):
         current_index = self.pages.currentIndex()
         current_page = self.pages.currentWidget()
         
-        print(f"=== go_next() - Seite {current_index} ===")
+        print(f"=== go_next() - Page {current_index} ===")
         
         # Validierung
         if not current_page.is_valid():
@@ -510,10 +510,10 @@ class InstallationWizard(QDialog):
         
         # Daten sammeln
         page_data = current_page.get_data()
-        print(f"Seiten-Daten: {page_data}")
+        print(f"Page data: {page_data}")
         self.collected_data.update(page_data)
         
-        print(f"Gesammelte Daten bisher: {self.collected_data}")
+        print(f"Collected data so far: {self.collected_data}")
         
         # Zur nächsten Seite
         if current_index < self.pages.count() - 1:
@@ -622,7 +622,7 @@ class InstallationWizard(QDialog):
         print(f"=== on_tutorial_requested({start_tutorial}) ===")
         self.complete_page.start_tutorial = start_tutorial
         # Automatisch zum Finish-Button weiterleiten
-        print("Rufe finish_wizard() in 300ms auf...")
+        print("Calling finish_wizard() in 300ms...")
         QTimer.singleShot(300, self.finish_wizard)
     
     def finish_wizard(self):
@@ -634,7 +634,7 @@ class InstallationWizard(QDialog):
         # Letzte Seite Daten sammeln
         self.collected_data.update(self.complete_page.get_data())
         
-        print(f"Gesammelte Daten: {self.collected_data}")
+        print(f"Collected data: {self.collected_data}")
         
         # HF-Token in Keychain speichern (nicht in History!)
         hf_token = self.collected_data.get("hf_token", "").strip()
@@ -656,13 +656,13 @@ class InstallationWizard(QDialog):
         
         # Bereite Konfiguration vor (ohne hf_token, start_tutorial und ui_language)
         # ui_language wird separat in user_preferences gespeichert (bereits in WelcomePage erledigt)
-        print("\n=== 💾 Speichere Wizard-Konfiguration ===")
+        print("\n=== 💾 Saving wizard configuration ===")
         initial_config = {k: v for k, v in self.collected_data.items() 
                          if k not in ('hf_token', 'start_tutorial', 'ui_language')}
         
         # Speichere als initial_config (wird beim ersten Start geladen)
         self.history_manager.save_initial_config(initial_config)
-        print(f"  ✓ Initial-Config gespeichert: {list(initial_config.keys())}")
+        print(f"  ✓ Initial config saved: {list(initial_config.keys())}")
         
         # Speichere User-Preferences (unabhängig von Sessions)
         # ui_language wurde bereits in WelcomePage gespeichert
@@ -670,21 +670,21 @@ class InstallationWizard(QDialog):
             self.history_manager.save_user_preference('preferred_theme', initial_config['preferred_theme'])
         if 'check_model_updates' in initial_config:
             self.history_manager.save_user_preference('check_model_updates', initial_config['check_model_updates'])
-        print("  ✓ User-Preferences gespeichert")
+        print("  ✓ User preferences saved")
         
         # Wizard als abgeschlossen markieren
-        print("\n🎉 Markiere Wizard als abgeschlossen...")
+        print("\n🎉 Marking wizard as completed...")
         self.history_manager.mark_wizard_completed(version="1.0")
         
         # Explizit nochmal speichern um sicherzustellen dass alles geschrieben wurde
-        print("💾 Finales Speichern...")
+        print("💾 Final save...")
         self.history_manager._save_history()
         
-        print(f"\n📊 Finale History-Werte:")
+        print(f"\n📊 Final history values:")
         print(f"  - first_run: {self.history_manager.history_data.get('app_settings', {}).get('first_run')}")
         print(f"  - wizard_completed: {self.history_manager.history_data.get('app_settings', {}).get('wizard_completed')}")
         print(f"  - initial_config: {list(initial_config.keys())}")
-        print("=== ✅ finish_wizard() abgeschlossen ===")
+        print("=== ✅ finish_wizard() completed ===")
         
         # Signal emittieren
         self.wizard_completed.emit(self.collected_data)

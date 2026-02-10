@@ -14,6 +14,14 @@ class HistoryManager:
     """Verwaltet History für zuletzt verwendete Dateien und Einstellungen."""
     
     MAX_HISTORY_ITEMS = 20  # Maximale Anzahl Historie-Einträge
+    _instance = None
+
+    @classmethod
+    def get_instance(cls) -> "HistoryManager":
+        """Gibt die Singleton-Instanz des HistoryManagers zurück."""
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
     
     def __init__(self):
         """Initialisiert den History-Manager."""
@@ -24,7 +32,7 @@ class HistoryManager:
         self.history_dir.mkdir(parents=True, exist_ok=True)
         
         self.history_file = self.history_dir / "history.json"
-        print(f"History-Manager initialisiert. Datei: {self.history_file}")
+        print(f"History manager initialized. File: {self.history_file}")
         self.history_data = self._load_history()
     
     def _load_history(self) -> dict:
@@ -83,33 +91,44 @@ class HistoryManager:
         except IOError as e:
             print(f"✗ ERROR: Could not save history: {e}")
     
+    def _add_to_list(self, list_key: str, entry: dict, match_key: str = "path"):
+        """
+        Generische Methode um einen Eintrag zu einer History-Liste hinzuzufügen.
+        
+        Args:
+            list_key: Schlüssel in history_data (z.B. 'input_files')
+            entry: Dict mit den Eintrags-Daten
+            match_key: Schlüssel zum Duplikat-Abgleich
+        """
+        match_value = entry.get(match_key)
+        
+        # Duplikate entfernen
+        self.history_data[list_key] = [
+            e for e in self.history_data[list_key]
+            if e.get(match_key) != match_value
+        ]
+        
+        # Am Anfang hinzufügen
+        self.history_data[list_key].insert(0, entry)
+        
+        # Limit auf MAX_HISTORY_ITEMS
+        self.history_data[list_key] = \
+            self.history_data[list_key][:self.MAX_HISTORY_ITEMS]
+        
+        self._save_history()
+    
     def add_input_file(self, file_path: str):
         """Fügt Input-Datei zur History hinzu."""
         if not file_path or not Path(file_path).exists():
             return
         
-        # Entry mit Timestamp und Metadaten
         entry = {
             "path": file_path,
             "timestamp": datetime.now().isoformat(),
             "name": Path(file_path).name,
             "size_mb": round(Path(file_path).stat().st_size / 1024 / 1024, 2)
         }
-        
-        # Duplikate entfernen
-        self.history_data["input_files"] = [
-            e for e in self.history_data["input_files"] 
-            if e.get("path") != file_path
-        ]
-        
-        # Am Anfang hinzufügen
-        self.history_data["input_files"].insert(0, entry)
-        
-        # Limit auf MAX_HISTORY_ITEMS
-        self.history_data["input_files"] = \
-            self.history_data["input_files"][:self.MAX_HISTORY_ITEMS]
-        
-        self._save_history()
+        self._add_to_list("input_files", entry)
     
     def add_model(self, model_path: str):
         """Fügt Modell zur History hinzu."""
@@ -122,18 +141,7 @@ class HistoryManager:
             "name": Path(model_path).name,
             "size_mb": round(Path(model_path).stat().st_size / 1024 / 1024, 2)
         }
-        
-        # Duplikate entfernen
-        self.history_data["models"] = [
-            e for e in self.history_data["models"]
-            if e.get("path") != model_path
-        ]
-        
-        self.history_data["models"].insert(0, entry)
-        self.history_data["models"] = \
-            self.history_data["models"][:self.MAX_HISTORY_ITEMS]
-        
-        self._save_history()
+        self._add_to_list("models", entry)
     
     def add_output_path(self, output_path: str):
         """Fügt Output-Pfad zur History hinzu."""
@@ -146,18 +154,7 @@ class HistoryManager:
             "directory": str(Path(output_path).parent),
             "name": Path(output_path).name
         }
-        
-        # Duplikate entfernen
-        self.history_data["output_paths"] = [
-            e for e in self.history_data["output_paths"]
-            if e.get("path") != output_path
-        ]
-        
-        self.history_data["output_paths"].insert(0, entry)
-        self.history_data["output_paths"] = \
-            self.history_data["output_paths"][:self.MAX_HISTORY_ITEMS]
-        
-        self._save_history()
+        self._add_to_list("output_paths", entry)
     
     def save_last_session(self, session_data: dict, profile_name: Optional[str] = None):
         """
@@ -173,7 +170,7 @@ class HistoryManager:
             "data": session_data
         }
         self._save_history()
-        print(f"✓ Last-Session gespeichert (Profil: {profile_name or 'Keins'})")
+        print(f"✓ Last session saved (Profile: {profile_name or 'None'})")
     
     def get_recent_input_files(self, limit: int = 10) -> List[dict]:
         """Gibt zuletzt verwendete Input-Dateien zurück."""
@@ -266,24 +263,6 @@ class HistoryManager:
         self.history_data["app_settings"]["onboarding_completed"] = complete
         self._save_history()
     
-    # NOTE: HF-Token wird NICHT mehr in History gespeichert!
-    # Token wird ausschließlich in macOS Keychain verwaltet.
-    # Diese Methoden bleiben zur Kompatibilität, sollten aber nicht verwendet werden.
-    
-    def save_hf_token(self, token: str):
-        """
-        DEPRECATED: Token wird nicht mehr in History gespeichert.
-        Verwenden Sie stattdessen macos_utils.save_hf_token_to_keychain()
-        """
-        pass  # Absichtlich leer - Token nicht mehr in History speichern
-    
-    def get_hf_token(self) -> Optional[str]:
-        """
-        DEPRECATED: Token wird nicht mehr aus History gelesen.
-        Verwenden Sie stattdessen macos_utils.get_hf_token_from_keychain()
-        """
-        return None  # Absichtlich None - Token aus Keychain laden
-    
     def save_app_setting(self, key: str, value):
         """Speichert eine beliebige App-Einstellung."""
         if "app_settings" not in self.history_data:
@@ -305,10 +284,6 @@ class HistoryManager:
             self.history_data["user_preferences"] = {}
         self.history_data["user_preferences"][key] = value
         self._save_history()
-    
-    def set_user_preference(self, key: str, value):
-        """Alias für save_user_preference (setzen statt speichern)."""
-        self.save_user_preference(key, value)
     
     def get_user_preference(self, key: str, default=None):
         """Gibt eine User-Preference zurück."""
@@ -332,7 +307,7 @@ class HistoryManager:
             "applied": False  # Flag ob bereits angewendet
         }
         self._save_history()
-        print(f"✓ Initial-Config gespeichert: {list(config.keys())}")
+        print(f"✓ Initial config saved: {list(config.keys())}")
     
     def get_initial_config(self) -> Optional[dict]:
         """
@@ -351,4 +326,4 @@ class HistoryManager:
         if self.history_data.get("initial_config"):
             self.history_data["initial_config"]["applied"] = True
             self._save_history()
-            print("✓ Initial-Config als angewendet markiert")
+            print("✓ Initial config marked as applied")

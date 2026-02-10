@@ -13,24 +13,26 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
+from .constants import SECTION_TITLE_FONT_SIZE, TOGGLE_BUTTON_WIDTH, TOGGLE_EXPANDED, TOGGLE_COLLAPSED
 
 
 class CollapsibleSection(QWidget):
     """Ein kollapsierbar/expandierbar Bereich mit Titel."""
     
-    def __init__(self, title: str, icon: str = "", parent=None):
+    def __init__(self, title: str, icon: str = "", expanded: bool = False, parent=None):
         """
         Initialisiert einen kollapsiblen Bereich.
         
         Args:
             title: Titel des Bereichs
             icon: Optional: Emoji oder Icon für den Titel
+            expanded: Startzustand (default: eingeklappt)
             parent: Parent-Widget
         """
         super().__init__(parent)
         self.title = title
         self.icon = icon
-        self.is_expanded = True
+        self.is_expanded = expanded
         
         # Haupt-Layout
         main_layout = QVBoxLayout(self)
@@ -43,19 +45,19 @@ class CollapsibleSection(QWidget):
         
         # Toggle-Button
         self.toggle_button = QPushButton()
-        self.toggle_button.setFixedWidth(25)
+        self.toggle_button.setFixedWidth(TOGGLE_BUTTON_WIDTH)
         self.toggle_button.setToolTip("Bereich ein-/ausblenden")
         self.toggle_button.clicked.connect(self.toggle)
-        self.update_toggle_button()
         title_layout.addWidget(self.toggle_button)
         
         # Titel-Label
-        title_label = QLabel(f"{icon} {title}" if icon else title)
+        display_text = f"{icon} {title}" if icon else title
+        self.title_label = QLabel(display_text)
         title_font = QFont()
-        title_font.setPointSize(13)
+        title_font.setPointSize(SECTION_TITLE_FONT_SIZE)
         title_font.setBold(True)
-        title_label.setFont(title_font)
-        title_layout.addWidget(title_label)
+        self.title_label.setFont(title_font)
+        title_layout.addWidget(self.title_label)
         
         title_layout.addStretch()
         main_layout.addLayout(title_layout)
@@ -66,11 +68,15 @@ class CollapsibleSection(QWidget):
         self.content_layout.setContentsMargins(10, 5, 0, 5)
         main_layout.addWidget(self.content_widget)
         
+        # Initial state
+        self.content_widget.setVisible(self.is_expanded)
+        self._update_toggle_button()
+        
         self.setLayout(main_layout)
     
-    def update_toggle_button(self):
+    def _update_toggle_button(self):
         """Aktualisiert das Toggle-Button Aussehen."""
-        text = "▼" if self.is_expanded else "▶"
+        text = TOGGLE_EXPANDED if self.is_expanded else TOGGLE_COLLAPSED
         self.toggle_button.setText(text)
     
     def toggle(self):
@@ -86,7 +92,7 @@ class CollapsibleSection(QWidget):
         """
         self.is_expanded = expanded
         self.content_widget.setVisible(expanded)
-        self.update_toggle_button()
+        self._update_toggle_button()
     
     def add_widget(self, widget: QWidget):
         """
@@ -109,3 +115,17 @@ class CollapsibleSection(QWidget):
     def add_stretch(self):
         """Fügt Stretch zum Content hinzu."""
         self.content_layout.addStretch()
+
+    def set_title(self, title: str, icon: str = None):
+        """
+        Aktualisiert den Titel der Section (z.B. nach Sprachwechsel).
+
+        Args:
+            title: Neuer Titel
+            icon: Optional neues Icon (wenn None, wird das bisherige verwendet)
+        """
+        if icon is not None:
+            self.icon = icon
+        self.title = title
+        display_text = f"{self.icon} {title}" if self.icon else title
+        self.title_label.setText(display_text)

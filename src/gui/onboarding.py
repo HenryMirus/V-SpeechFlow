@@ -143,7 +143,7 @@ class OnboardingManager:
     
     def __init__(self, main_window):
         self.main_window = main_window
-        self.history_manager = HistoryManager()
+        self.history_manager = HistoryManager.get_instance()
         print ("OnboardingManager: Initialisiert")
         self.dialog = None
         self.steps = []
@@ -472,39 +472,33 @@ class OnboardingManager:
         8: Settings Panel
         9: Start Button
         """
-        # Panel-Zuordnung: Schritt-Index -> Panel-Objekt
-        panel_mapping = {
-            1: ('input_panel', None),  # Live (nicht kollabierbar, immer sichtbar)
-            2: ('input_panel', None),  # File Tab (nicht kollabierbar, immer sichtbar)
-            3: ('input_panel', None),  # Batch (nicht kollabierbar, immer sichtbar)
-            4: ('profile_combo', None),  # Profile (nicht kollabierbar, nur Combobox)
-            5: ('model_panel', 'toggle_content'),  # Model Panel
-            6: ('diarization_panel', 'toggle_content'),  # Diarization Panel
-            7: ('output_panel', 'toggle_content'),  # Output Panel
-            8: ('settings_panel', 'toggle_content'),  # Settings Panel
-            9: ('btn_start', None),  # Start Button (nicht kollabierbar)
+        # Kollabierbare Panels: Schritt-Index -> Panel-Attribut-Name
+        collapsible_panels = {
+            5: 'model_panel',
+            6: 'diarization_panel',
+            7: 'output_panel',
+            8: 'settings_panel',
         }
         
-        # Alle kollapsiblen Panels kollabieren
-        for step_idx, (panel_name, toggle_method) in panel_mapping.items():
-            if toggle_method and hasattr(self.main_window, panel_name):
-                panel = getattr(self.main_window, panel_name)
-                # Panel nur kollabieren, wenn es nicht der aktuelle Schritt ist und expandiert ist
-                if step_idx != step_index and hasattr(panel, 'is_expanded'):
-                    if panel.is_expanded:
-                        panel.toggle_content()  # Kollabieren
-                        print(f"Collapsed panel: {panel_name}")
-        
-        # Aktuelles Panel expandieren (wenn es eines hat)
-        if step_index in panel_mapping:
-            panel_name, toggle_method = panel_mapping[step_index]
-            if toggle_method and hasattr(self.main_window, panel_name):
-                panel = getattr(self.main_window, panel_name)
-                # Panel nur expandieren, wenn es nicht bereits expandiert ist
-                if hasattr(panel, 'is_expanded'):
-                    if not panel.is_expanded:
-                        panel.toggle_content()  # Expandieren
-                        print(f"Expanded panel: {panel_name}") 
+        # Alle kollapsiblen Panels kollabieren, aktuelles expandieren
+        for step_idx, panel_name in collapsible_panels.items():
+            if not hasattr(self.main_window, panel_name):
+                continue
+            panel = getattr(self.main_window, panel_name)
+            section = getattr(panel, 'section', None)
+            if section is None or not hasattr(section, 'set_expanded'):
+                continue
+            
+            if step_idx == step_index:
+                # Aktuelles Panel expandieren
+                if not section.is_expanded:
+                    section.set_expanded(True)
+                    print(f"Expanded panel: {panel_name}")
+            else:
+                # Andere Panels kollabieren
+                if section.is_expanded:
+                    section.set_expanded(False)
+                    print(f"Collapsed panel: {panel_name}") 
     
     def next_step(self):
         """Geht zum nächsten Schritt."""
@@ -541,22 +535,13 @@ class OnboardingManager:
         # Highlight entfernen
         self._clear_widget_highlight()
         
-        # Alle Panels kollabieren (aufräumen)
-        if hasattr(self.main_window, 'model_panel') and hasattr(self.main_window.model_panel, 'is_expanded'):
-            if self.main_window.model_panel.is_expanded:
-                self.main_window.model_panel.toggle_content()
-        
-        if hasattr(self.main_window, 'diarization_panel') and hasattr(self.main_window.diarization_panel, 'is_expanded'):
-            if self.main_window.diarization_panel.is_expanded:
-                self.main_window.diarization_panel.toggle_content()
-        
-        if hasattr(self.main_window, 'output_panel') and hasattr(self.main_window.output_panel, 'is_expanded'):
-            if self.main_window.output_panel.is_expanded:
-                self.main_window.output_panel.toggle_content()
-        
-        if hasattr(self.main_window, 'settings_panel') and hasattr(self.main_window.settings_panel, 'is_expanded'):
-            if self.main_window.settings_panel.is_expanded:
-                self.main_window.settings_panel.toggle_content()
+        # Alle kollabierbare Panels kollabieren (aufräumen)
+        for panel_name in ('model_panel', 'diarization_panel', 'output_panel', 'settings_panel'):
+            if hasattr(self.main_window, panel_name):
+                panel = getattr(self.main_window, panel_name)
+                section = getattr(panel, 'section', None)
+                if section and hasattr(section, 'is_expanded') and section.is_expanded:
+                    section.set_expanded(False)
         
         # Dialog aufräumen
         if self.dialog:

@@ -23,6 +23,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont, QDragEnterEvent, QDropEvent
 from .translations import tr
+from .constants import SUPPORTED_AUDIO_FORMATS
 
 
 class BatchPanel(QWidget):
@@ -33,7 +34,7 @@ class BatchPanel(QWidget):
     batch_finished = pyqtSignal()
     file_processing = pyqtSignal(str, int, int)  # file_path, current, total
     
-    SUPPORTED_FORMATS = ("mp3", "m4a", "wav", "flac", "ogg")
+    SUPPORTED_FORMATS = SUPPORTED_AUDIO_FORMATS
     
     def __init__(self):
         super().__init__()
@@ -283,4 +284,4 @@ class BatchPanel(QWidget):
     def set_enabled(self, enabled: bool):
         """Aktiviert/Deaktiviert die UI während Batch-Processing."""
         self.file_list_widget.setEnabled(enabled)
-        self.findChild(QPushButton, "➕ Dateien hinzufügen").setEnabled(enabled) if self.findChild(QPushButton) else None
+        # Buttons werden über das parent-Widget gesteuert

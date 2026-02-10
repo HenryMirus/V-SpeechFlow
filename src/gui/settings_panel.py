@@ -21,6 +21,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
 from .translations import tr
+from .collapsible_section import CollapsibleSection
 from .system_utils import get_system_info, get_recommended_threads
 
 
@@ -49,7 +50,6 @@ class SettingsPanel(QWidget):
     def __init__(self):
         super().__init__()
         self.system_info = get_system_info()
-        self.is_expanded = False
         self.init_ui()
     
     def init_ui(self):
@@ -57,32 +57,9 @@ class SettingsPanel(QWidget):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         
-        # Titel mit Toggle-Button
-        title_layout = QHBoxLayout()
-        title_layout.setContentsMargins(0, 5, 0, 5)
-        
-        # Toggle-Button
-        self.toggle_button = QPushButton("▶")
-        self.toggle_button.setFixedWidth(25)
-        self.toggle_button.setToolTip("Bereich ein-/ausblenden")
-        self.toggle_button.clicked.connect(self.toggle_content)
-        title_layout.addWidget(self.toggle_button)
-        
-        # Titel-Label
-        title = QLabel("⚙️ " + tr("settings_title"))
-        title_font = QFont()
-        title_font.setPointSize(13)
-        title_font.setBold(True)
-        title.setFont(title_font)
-        title_layout.addWidget(title)
-        title_layout.addStretch()
-        main_layout.addLayout(title_layout)
-        
-        # Content Container
-        self.content_widget = QWidget()
-        self.content_widget.setVisible(False)  # Standardmäßig eingeklappt
-        layout = QVBoxLayout(self.content_widget)
-        layout.setContentsMargins(10, 5, 0, 5)
+        # Collapsible Section
+        self.section = CollapsibleSection("⚙️ " + tr("settings_title"))
+        layout = self.section.content_layout
         
         # ===== Thread Configuration =====
         thread_group = QGroupBox("🔧 " + tr("settings_thread_config"))
@@ -187,8 +164,8 @@ class SettingsPanel(QWidget):
         
         layout.addStretch()
         
-        # Content-Widget zum Main-Layout hinzufügen
-        main_layout.addWidget(self.content_widget)
+        # Collapsible Section zum Main-Layout hinzufügen
+        main_layout.addWidget(self.section)
         self.setLayout(main_layout)
     
     def emit_settings_changed(self):
@@ -233,9 +210,17 @@ class SettingsPanel(QWidget):
         threads = max(1, min(cpu_count, threads))
         # Setze beide Widgets (sie sind bereits miteinander verbunden)
         self.thread_spinbox.setValue(threads)
+
+    def refresh_translations(self):
+        """Aktualisiert alle übersetzbaren Texte nach einem Sprachwechsel."""
+        from .translations import tr
+
+        self.section.set_title(tr("settings_title"), icon="⚙️")
+        self.thread_slider.setToolTip(tr("tooltip_threads"))
+        self.thread_spinbox.setToolTip(tr("tooltip_threads"))
+        self.language_combo.setToolTip(tr("tooltip_language"))
+        self.translate_checkbox.setText(tr("settings_translate"))
+        self.translate_checkbox.setToolTip(tr("tooltip_translate"))
+        self.keep_temp_checkbox.setText(tr("settings_keep_temp"))
+        self.keep_temp_checkbox.setToolTip(tr("settings_keep_temp_tooltip"))
     
-    def toggle_content(self):
-        """Toggle zwischen expanded/collapsed."""
-        self.is_expanded = not self.is_expanded
-        self.content_widget.setVisible(self.is_expanded)
-        self.toggle_button.setText("▼" if self.is_expanded else "▶")

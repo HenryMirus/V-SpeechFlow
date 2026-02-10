@@ -22,7 +22,9 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
 from .translations import tr
+from .collapsible_section import CollapsibleSection
 from .macos_utils import get_hf_token_from_keychain, is_mac
+from .utils import validate_token_format
 
 
 class DiarizationPanel(QWidget):
@@ -33,7 +35,6 @@ class DiarizationPanel(QWidget):
     
     def __init__(self):
         super().__init__()
-        self.is_expanded = False
         self.init_ui()
         
         # Auto-Load Token aus Keychain beim Start
@@ -52,32 +53,9 @@ class DiarizationPanel(QWidget):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         
-        # Titel mit Toggle-Button
-        title_layout = QHBoxLayout()
-        title_layout.setContentsMargins(0, 5, 0, 5)
-        
-        # Toggle-Button
-        self.toggle_button = QPushButton("▶")
-        self.toggle_button.setFixedWidth(25)
-        self.toggle_button.setToolTip("Bereich ein-/ausblenden")
-        self.toggle_button.clicked.connect(self.toggle_content)
-        title_layout.addWidget(self.toggle_button)
-        
-        # Titel-Label
-        title = QLabel("👥 " + tr("diarization_title"))
-        title_font = QFont()
-        title_font.setPointSize(13)
-        title_font.setBold(True)
-        title.setFont(title_font)
-        title_layout.addWidget(title)
-        title_layout.addStretch()
-        main_layout.addLayout(title_layout)
-        
-        # Content Container
-        self.content_widget = QWidget()
-        self.content_widget.setVisible(False)  # Standardmäßig eingeklappt
-        layout = QVBoxLayout(self.content_widget)
-        layout.setContentsMargins(10, 5, 0, 5)
+        # Collapsible Section
+        self.section = CollapsibleSection("👥 " + tr("diarization_title"))
+        layout = self.section.content_layout
         
         # Aktivierungs-Checkbox
         self.enable_checkbox = QCheckBox(tr("diarization_enable"))
@@ -220,8 +198,8 @@ class DiarizationPanel(QWidget):
         
         layout.addStretch()
         
-        # Content-Widget zum Main-Layout hinzufügen
-        main_layout.addWidget(self.content_widget)
+        # Collapsible Section zum Main-Layout hinzufügen
+        main_layout.addWidget(self.section)
         self.setLayout(main_layout)
     
     def on_enable_changed(self, state: int):
@@ -261,23 +239,14 @@ class DiarizationPanel(QWidget):
         if not token:
             self.token_status.setText(tr("diarization_token_status_empty"))
             self.token_status.setStyleSheet("color: gray; font-size: 10px;")
-        elif self.validate_token_format(token):
+        elif validate_token_format(token):
             self.token_status.setText(tr("diarization_token_status_valid"))
             self.token_status.setStyleSheet("color: green; font-size: 10px;")
         else:
-            self.token_status.setText("⚠ Ungültiges Token Format (erwartet: hf_xxx)")
+            self.token_status.setText(tr("diarization_token_invalid_format"))
             self.token_status.setStyleSheet("color: orange; font-size: 10px;")
         
         self.emit_settings_changed()
-    
-    def validate_token_format(self, token: str) -> bool:
-        """
-        Validiert das Format des HuggingFace Tokens.
-        
-        Returns:
-            True wenn Format gültig (beginnt mit hf_ und hat min. 20 Zeichen)
-        """
-        return token.startswith("hf_") and len(token) >= 20
     
     def toggle_token_visibility(self, show: bool):
         """Zeigt/versteckt den Token."""
@@ -370,22 +339,12 @@ class DiarizationPanel(QWidget):
                     token = keychain_token
                 else:
                     # Kein Token in Keychain
-                    return False, (
-                        "HuggingFace Token ist erforderlich für Speaker Diarization.\n\n"
-                        "Der Token wurde nicht in der macOS Keychain gefunden.\n"
-                        "Entweder ist keiner gespeichert oder er wurde falsch gespeichert.\n\n"
-                        "Bitte speichern Sie den Token mit:\n"
-                        "security add-generic-password -s HF_V-Speechflow -a user -w \"hf_xxx\"\n\n"
-                        "Oder geben Sie ihn manuell im Diarization-Panel ein."
-                    )
+                    return False, tr("diarization_token_required_mac")
             else:
-                return False, (
-                    "HuggingFace Token ist erforderlich für Speaker Diarization.\n\n"
-                    "Bitte geben Sie den Token im Diarization-Panel ein."
-                )
+                return False, tr("diarization_token_required")
         
-        if not self.validate_token_format(token):
-            return False, "HuggingFace Token hat ungültiges Format (muss mit 'hf_' beginnen)."
+        if not validate_token_format(token):
+            return False, tr("diarization_token_invalid")
         
         # Sprecher-Anzahl prüfen
         if settings['mode'] == 'exact':
@@ -435,9 +394,22 @@ class DiarizationPanel(QWidget):
             token: Der HuggingFace Token
         """
         self.hf_token_input.setText(token)
+
+    def refresh_translations(self):
+        """Aktualisiert alle übersetzbaren Texte nach einem Sprachwechsel."""
+        from .translations import tr
+
+        self.section.set_title(tr("diarization_title"), icon="👥")
+        self.enable_checkbox.setText(tr("diarization_enable"))
+        self.enable_checkbox.setToolTip(tr("tooltip_diarization"))
+        self.settings_group.setTitle(tr("diarization_settings"))
+        self.exact_radio.setText(tr("diarization_mode_exact"))
+        self.exact_radio.setToolTip(tr("diarization_mode_exact_tooltip"))
+        self.auto_radio.setText(tr("diarization_mode_auto"))
+        self.auto_radio.setToolTip(tr("diarization_mode_auto_tooltip"))
+        self.num_speakers_spinbox.setToolTip(tr("diarization_num_speakers_tooltip"))
+        self.min_speakers_spinbox.setToolTip(tr("diarization_min_tooltip"))
+        self.max_speakers_spinbox.setToolTip(tr("diarization_max_tooltip"))
+        self.hf_token_input.setPlaceholderText(tr("diarization_token_placeholder"))
+        self.hf_token_input.setToolTip(tr("tooltip_hf_token"))
     
-    def toggle_content(self):
-        """Toggle zwischen expanded/collapsed."""
-        self.is_expanded = not self.is_expanded
-        self.content_widget.setVisible(self.is_expanded)
-        self.toggle_button.setText("▼" if self.is_expanded else "▶")

@@ -21,8 +21,8 @@ def main():
     app.setApplicationName("V-SpeechFlow")
     app.setApplicationVersion("0.1.0")
     
-    # History-Manager für First-Run Check
-    history_manager = HistoryManager()
+    # History-Manager (Singleton)
+    history_manager = HistoryManager.get_instance()
     
     # Hauptfenster erstellen
     window = MainWindow()

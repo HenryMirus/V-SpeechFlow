@@ -10,6 +10,7 @@ import os
 import re
 from pathlib import Path
 from PyQt6.QtCore import QThread, pyqtSignal
+from .utils import parse_timestamp
 
 
 class CLIWorker(QThread):
@@ -33,32 +34,8 @@ class CLIWorker(QThread):
         self.last_timestamp = 0.0
     
     def parse_timestamp_from_output(self, line: str) -> float:
-        """
-        Parst Timestamps aus Whisper Output.
-        
-        Sucht nach Patterns wie [00:01:23.456 --> 00:01:25.789] oder ähnlich.
-        
-        Args:
-            line: Output-Zeile
-            
-        Returns:
-            Timestamp in Sekunden oder 0.0
-        """
-        # Pattern für Timestamps: [HH:MM:SS.mmm --> HH:MM:SS.mmm]
-        pattern = r'\[(\d{2}):(\d{2}):(\d{2})\.(\d{3})\s*-->'
-        match = re.search(pattern, line)
-        
-        if match:
-            hours, minutes, seconds, milliseconds = match.groups()
-            total_seconds = (
-                int(hours) * 3600 +
-                int(minutes) * 60 +
-                int(seconds) +
-                int(milliseconds) / 1000.0
-            )
-            return total_seconds
-        
-        return 0.0
+        """Parst Timestamps aus Whisper Output."""
+        return parse_timestamp(line)
     
     def run(self):
         """Führt die CLI mit den übergebenen Argumenten aus."""
@@ -67,9 +44,9 @@ class CLIWorker(QThread):
             project_root = Path(__file__).parent.parent
             cli_script = project_root / "python" / "stt_cli.py"
             
-            # Prüfen ob CLI-Script existiert
+            # Check if CLI script exists
             if not cli_script.exists():
-                self.error_received.emit(f"CLI-Script nicht gefunden: {cli_script}")
+                self.error_received.emit(f"CLI script not found: {cli_script}")
                 self.process_finished.emit(1)
                 return
             
@@ -129,7 +106,7 @@ class CLIWorker(QThread):
             self.process_finished.emit(return_code)
             
         except Exception as e:
-            self.error_received.emit(f"Fehler beim Starten der CLI: {str(e)}")
+            self.error_received.emit(f"Error starting CLI: {str(e)}")
             self.process_finished.emit(1)
     
     def stop(self):
@@ -169,17 +146,8 @@ class RecordingWorker(QThread):
     def run(self):
         """Führt die Aufnahme aus."""
         try:
-            # LiveRecorder importieren - sys.path muss zuerst gesetzt werden
-            import sys
-            from pathlib import Path as PathLib
-            project_root = PathLib(__file__).parent.parent
-            python_path = str(project_root / "python")
-            
-            if python_path not in sys.path:
-                sys.path.insert(0, python_path)
-            
-            # Jetzt importieren (wird zur Laufzeit über den angepassten sys.path gefunden)
-            from live_recorder import LiveRecorder  # type: ignore
+            # LiveRecorder aus dem python-Modul importieren
+            from ..python.live_recorder import LiveRecorder
             import numpy as np
             
             self.recorder = LiveRecorder()
@@ -207,7 +175,7 @@ class RecordingWorker(QThread):
                     
                 except Exception as e:
                     if not self.should_stop:
-                        self.recording_error.emit(f"Fehler beim Aufnehmen: {str(e)}")
+                        self.recording_error.emit(f"Recording error: {str(e)}")
                         break
             
             # Aufnahme beenden und speichern
@@ -220,7 +188,7 @@ class RecordingWorker(QThread):
             self.recording_finished.emit(str(self.output_path))
             
         except Exception as e:
-            self.recording_error.emit(f"Recording-Fehler: {str(e)}")
+            self.recording_error.emit(f"Recording error: {str(e)}")
         
         finally:
             if self.recorder:

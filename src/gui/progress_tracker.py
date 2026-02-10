@@ -10,6 +10,7 @@ import time
 import subprocess
 from pathlib import Path
 from typing import Optional, Tuple
+from .utils import parse_timestamp as _parse_timestamp_shared
 
 
 class ProgressTracker:
@@ -231,32 +232,8 @@ class ProgressTracker:
         return updated
     
     def _parse_timestamp(self, line: str) -> float:
-        """
-        Parst Timestamps aus Output-Zeilen.
-        
-        Format: [HH:MM:SS.mmm --> HH:MM:SS.mmm] text
-        
-        Args:
-            line: Output-Zeile
-            
-        Returns:
-            Timestamp in Sekunden oder 0.0
-        """
-        # Pattern für Timestamps
-        pattern = r'\[(\d{2}):(\d{2}):(\d{2})\.(\d{3})\s*-->'
-        match = re.search(pattern, line)
-        
-        if match:
-            hours, minutes, seconds, milliseconds = match.groups()
-            total_seconds = (
-                int(hours) * 3600 +
-                int(minutes) * 60 +
-                int(seconds) +
-                int(milliseconds) / 1000.0
-            )
-            return total_seconds
-        
-        return 0.0
+        """Parst Timestamps aus Output-Zeilen."""
+        return _parse_timestamp_shared(line)
     
     def set_audio_duration(self, duration_seconds: float):
         """

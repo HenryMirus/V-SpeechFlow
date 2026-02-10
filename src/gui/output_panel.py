@@ -23,6 +23,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
 from .translations import tr
+from .collapsible_section import CollapsibleSection
 
 
 class OutputPanel(QWidget):
@@ -34,7 +35,6 @@ class OutputPanel(QWidget):
     def __init__(self):
         super().__init__()
         self.selected_output_path = None
-        self.is_expanded = False
         self.init_ui()
     
     def init_ui(self):
@@ -42,32 +42,9 @@ class OutputPanel(QWidget):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         
-        # Titel mit Toggle-Button
-        title_layout = QHBoxLayout()
-        title_layout.setContentsMargins(0, 5, 0, 5)
-        
-        # Toggle-Button
-        self.toggle_button = QPushButton("▶")
-        self.toggle_button.setFixedWidth(25)
-        self.toggle_button.setToolTip("Bereich ein-/ausblenden")
-        self.toggle_button.clicked.connect(self.toggle_content)
-        title_layout.addWidget(self.toggle_button)
-        
-        # Titel-Label
-        title = QLabel("📝 " + tr("output_title"))
-        title_font = QFont()
-        title_font.setPointSize(13)
-        title_font.setBold(True)
-        title.setFont(title_font)
-        title_layout.addWidget(title)
-        title_layout.addStretch()
-        main_layout.addLayout(title_layout)
-        
-        # Content Container
-        self.content_widget = QWidget()
-        self.content_widget.setVisible(False)  # Standardmäßig eingeklappt
-        layout = QVBoxLayout(self.content_widget)
-        layout.setContentsMargins(10, 5, 0, 5)
+        # Collapsible Section
+        self.section = CollapsibleSection("📝 " + tr("output_title"))
+        layout = self.section.content_layout
         
         # === Ausgabedatei ===
         output_group = QGroupBox(tr("output_file_group"))
@@ -186,8 +163,8 @@ class OutputPanel(QWidget):
         
         layout.addStretch()
         
-        # Content-Widget zum Main-Layout hinzufügen
-        main_layout.addWidget(self.content_widget)
+        # Collapsible Section zum Main-Layout hinzufügen
+        main_layout.addWidget(self.section)
         self.setLayout(main_layout)
     
     def browse_output_file(self):
@@ -378,9 +355,21 @@ Diarization: 2 Sprecher
             enabled: True um Auto-Open zu aktivieren, False zum Deaktivieren
         """
         self.auto_open_checkbox.setChecked(enabled)
+
+    def refresh_translations(self):
+        """Aktualisiert alle übersetzbaren Texte nach einem Sprachwechsel."""
+        from .translations import tr
+
+        self.section.set_title(tr("output_title"), icon="📝")
+        self.output_path_input.setPlaceholderText(tr("output_path_placeholder"))
+        self.output_path_input.setToolTip(tr("tooltip_output_path"))
+        self.path_status.setText("💡 " + tr("output_auto_hint"))
+        self.timestamps_checkbox.setText(tr("output_segments_checkbox"))
+        self.timestamps_checkbox.setToolTip(tr("tooltip_segments"))
+        self.plain_radio.setText(tr("output_plain_radio"))
+        self.plain_radio.setToolTip(tr("output_plain_tooltip"))
+        self.structured_radio.setText(tr("output_structured_radio"))
+        self.structured_radio.setToolTip(tr("output_structured_tooltip"))
+        self.auto_open_checkbox.setText(tr("output_auto_open"))
+        self.auto_open_checkbox.setToolTip(tr("output_auto_open_tooltip"))
     
-    def toggle_content(self):
-        """Toggle zwischen expanded/collapsed."""
-        self.is_expanded = not self.is_expanded
-        self.content_widget.setVisible(self.is_expanded)
-        self.toggle_button.setText("▼" if self.is_expanded else "▶")

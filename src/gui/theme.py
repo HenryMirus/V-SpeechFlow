@@ -4,40 +4,23 @@ Theme Management für V-SpeechFlow GUI
 Stellt Light und Dark Mode Themes bereit.
 """
 
-from pathlib import Path
-import json
-
-
 class ThemeManager:
-    """Verwaltet Themes für die GUI."""
+    """Verwaltet Themes für die GUI.
+
+    Persistenz erfolgt über HistoryManager.user_preferences['preferred_theme'].
+    ThemeManager kümmert sich nur um Stylesheet-Logik.
+    """
     
     def __init__(self):
         """Initialisiert den Theme-Manager."""
-        self.config_dir = Path.home() / ".vspeechflow"
-        self.config_dir.mkdir(parents=True, exist_ok=True)
-        self.theme_file = self.config_dir / "theme.json"
-        
-        self.current_theme = self.load_theme_preference()
-    
-    def load_theme_preference(self) -> str:
-        """Lädt die gespeicherte Theme-Präferenz."""
-        if self.theme_file.exists():
-            try:
-                with open(self.theme_file, 'r') as f:
-                    data = json.load(f)
-                    return data.get('theme', 'light')
-            except:
-                pass
-        return 'light'
+        from .history import HistoryManager
+        self._history = HistoryManager.get_instance()
+        self.current_theme = self._history.get_user_preference('preferred_theme', 'light')
     
     def save_theme_preference(self, theme: str):
-        """Speichert die Theme-Präferenz."""
-        try:
-            with open(self.theme_file, 'w') as f:
-                json.dump({'theme': theme}, f)
-            self.current_theme = theme
-        except:
-            pass
+        """Speichert die Theme-Präferenz über den HistoryManager."""
+        self._history.save_user_preference('preferred_theme', theme)
+        self.current_theme = theme
     
     def get_current_theme(self) -> str:
         """Gibt das aktuelle Theme zurück."""

@@ -22,6 +22,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QDesktopServices, QFont
 from .translations import tr
+from .collapsible_section import CollapsibleSection
 from .model_utils import (
     AVAILABLE_MODELS,
     validate_model_file,
@@ -45,7 +46,6 @@ class ModelPanel(QWidget):
     def __init__(self):
         super().__init__()
         self.selected_model = None
-        self.is_expanded = False
         self.is_model_info_expanded = False
         self.init_ui()
     
@@ -54,31 +54,9 @@ class ModelPanel(QWidget):
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         
-        # Titel mit Toggle-Button
-        title_layout = QHBoxLayout()
-        title_layout.setContentsMargins(0, 5, 0, 5)
-        
-        # Toggle-Button
-        self.toggle_button = QPushButton("▶")
-        self.toggle_button.setFixedWidth(25)
-        self.toggle_button.setToolTip("Bereich ein-/ausblenden")
-        self.toggle_button.clicked.connect(self.toggle_content)
-        title_layout.addWidget(self.toggle_button)
-        
-        # Titel-Label
-        title = QLabel("🤖 " + tr("model_panel_title"))
-        title_font = QFont()
-        title_font.setPointSize(13)
-        title_font.setBold(True)
-        title.setFont(title_font)
-        title_layout.addWidget(title)
-        title_layout.addStretch()
-        main_layout.addLayout(title_layout)
-        
-        # Content Container
-        self.content_widget = QWidget()
-        self.content_widget.setVisible(False)  # Standardmäßig eingeklappt
-        layout = QVBoxLayout(self.content_widget)
+        # Collapsible Section
+        self.section = CollapsibleSection("🤖 " + tr("model_panel_title"))
+        layout = self.section.content_layout
         layout.setContentsMargins(10, 5, 0, 5)
         
         # Modell-Auswahl (Vorschläge)
@@ -205,8 +183,8 @@ class ModelPanel(QWidget):
         
         layout.addStretch()
         
-        # Content-Widget zum Main-Layout hinzufügen
-        main_layout.addWidget(self.content_widget)
+        # Collapsible Section zum Main-Layout hinzufügen
+        main_layout.addWidget(self.section)
         self.setLayout(main_layout)
     
     def populate_model_combo(self):
@@ -320,14 +298,18 @@ class ModelPanel(QWidget):
             if model_path:
                 self.set_model_path(model_path)
     
-    def toggle_content(self):
-        """Toggle zwischen expanded/collapsed."""
-        self.is_expanded = not self.is_expanded
-        self.content_widget.setVisible(self.is_expanded)
-        self.toggle_button.setText("▼" if self.is_expanded else "▶")
-    
     def toggle_model_info(self):
         """Toggle für die verfügbaren Modelle."""
         self.is_model_info_expanded = not self.is_model_info_expanded
         self.model_info_content.setVisible(self.is_model_info_expanded)
         self.model_info_toggle_button.setText("▼" if self.is_model_info_expanded else "▶")
+
+    def refresh_translations(self):
+        """Aktualisiert alle übersetzbaren Texte nach einem Sprachwechsel."""
+        from .translations import tr
+
+        self.section.set_title(tr("model_panel_title"), icon="🤖")
+        self.model_combo.setToolTip(tr("tooltip_model_path"))
+        self.model_path_input.setToolTip(tr("tooltip_model_path"))
+        self.validation_status.setText("⏳ " + tr("model_validation_pending"))
+

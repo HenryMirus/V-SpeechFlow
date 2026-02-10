@@ -83,26 +83,8 @@
 - [ ] PDF-Export mit Formatierung
 - [ ] Direkter Kopieren-Button (Text in Clipboard)
 
-### **Qualität & Monitoring**
-- [ ] Audio-Qualitäts-Check vor Transkription
-- [ ] Diarization-Qualitäts-Score anzeigen
-- [x] Zeitschätzung (wie lange dauert die Verarbeitung?) → `time_estimator.py` mit dynamischer ETA, Progress % und Speed-Info
-- [ ] RAM-Monitoring (modellabhängig)
-- [ ] Modell-Benchmark (Geschwindigkeit testen)
-
 ### **Integration & Automatisierung**
 - [x] Transkript automatisch in Texteditor öffnen
-- [ ] Direkt in Notion/Obsidian/Apple Notes exportieren
-- [ ] Automatische Correktion häufiger Fehler (z.B. deutsche Umlaute)
-- [ ] Webhook/API für externe Systeme
-- [ ] Keyboard-Hotkey für Live-Recording (backgrounded)
-
-### **Visualisierung & Analyse**
-- [ ] Sprecher-Statistik (Redezeit-Prozentual)
-- [ ] Wörter-Häufigkeit-Analyse
-- [ ] Suchfunktion im Transkript
-- [ ] Timeline-Visualisierung mit Speaker-Timeline
-- [ ] Echtzeit-Wellenform während Recording
 
 ### **Accessibility & Erwerbbarkeit**
 - [x] Mehrsprachige UI (Deutsch, Englisch, ...) → `translations.py` mit DE/EN Support
@@ -114,7 +96,7 @@
 ---
 
 ## **Verbesserungen**
-- [ ] Intuitivere UI/UX
+- [x] Intuitivere UI/UX
   - [x] Logische Reihenfolge
   - [x] Ausklappbare Menüs
   - [x] Hilfe-Fenster mit Tastenkürzeln

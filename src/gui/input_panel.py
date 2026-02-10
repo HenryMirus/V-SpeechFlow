@@ -29,6 +29,7 @@ from .utils import list_audio_devices, get_default_device
 from .macos_utils import get_hf_token_from_keychain, is_mac
 from .workers import RecordingWorker
 from .batch_panel import BatchPanel
+from .constants import SUPPORTED_AUDIO_FORMATS
 
 
 class InputPanel(QWidget):
@@ -40,7 +41,7 @@ class InputPanel(QWidget):
     recording_started = pyqtSignal()  # Signal wenn Live-Recording startet
     recording_stopped = pyqtSignal()  # Signal wenn Live-Recording endet
     
-    SUPPORTED_FORMATS = ("mp3", "m4a", "wav", "flac", "ogg")
+    SUPPORTED_FORMATS = SUPPORTED_AUDIO_FORMATS
     
     def __init__(self):
         super().__init__()
@@ -201,7 +202,7 @@ class InputPanel(QWidget):
             self,
             tr("input_file_dialog_title"),
             "",
-            f"Audio-Dateien ({' '.join(f'*.{fmt}' for fmt in self.SUPPORTED_FORMATS)});;Alle Dateien (*)"
+            f"{tr('input_audio_files_filter')} ({' '.join(f'*.{fmt}' for fmt in self.SUPPORTED_FORMATS)});;{tr('input_all_files')} (*)"
         )
         
         if file_path:
@@ -307,7 +308,7 @@ class InputPanel(QWidget):
         
         device_id = self.mic_combo.currentData()
         if device_id is not None and device_id >= 0:
-            self.history_manager.set_user_preference('last_microphone_id', device_id)
+            self.history_manager.save_user_preference('last_microphone_id', device_id)
             self.saved_device_id = device_id
             device_name = self.mic_combo.currentText()
             print(f"✓ Mikrofon gespeichert: {device_name} (ID: {device_id})")
@@ -354,7 +355,7 @@ class InputPanel(QWidget):
             self.is_recording = True
             self.recorded_file = str(output_path)
             
-            self.recording_status.setText("🔴 Aufnahme läuft... (0.0s)")
+            self.recording_status.setText(tr("status_recording_starting"))
             self.recording_status.setStyleSheet("color: red; font-weight: bold;")
             
             self.btn_start_recording.setEnabled(False)
@@ -383,7 +384,7 @@ class InputPanel(QWidget):
         self.is_recording = False
         self.volume_bar.setValue(0)
         
-        self.recording_status.setText("⏹️ Gestoppt - Speichere...")
+        self.recording_status.setText(tr("status_recording_saving"))
         self.recording_status.setStyleSheet("color: orange; font-weight: bold;")
         
         # UI wird in on_recording_finished() zurückgesetzt
@@ -459,7 +460,7 @@ class InputPanel(QWidget):
     
     def on_duration_updated(self, duration: float):
         """Wird aufgerufen wenn sich die Dauer ändert."""
-        self.recording_status.setText(f"🔴 Aufnahme läuft... ({duration:.1f}s)")
+        self.recording_status.setText(tr("status_recording_running").format(duration=duration))
     
     def on_recording_error(self, error_msg: str):
         """Wird aufgerufen wenn ein Fehler auftritt."""
@@ -472,7 +473,7 @@ class InputPanel(QWidget):
         self.is_recording = False
         self.volume_bar.setValue(0)
         
-        self.recording_status.setText("❌ Fehler")
+        self.recording_status.setText(tr("status_recording_error"))
         self.recording_status.setStyleSheet("color: red; font-weight: bold;")
         
         self.btn_start_recording.setEnabled(True)
@@ -488,7 +489,7 @@ class InputPanel(QWidget):
         path = Path(wav_path)
         size_mb = path.stat().st_size / 1024 / 1024
         
-        self.recording_status.setText("✅ Gespeichert: {path.name} ({size_mb:.1f}MB)")
+        self.recording_status.setText(tr("status_recording_saved").format(name=path.name, size=f"{size_mb:.1f}"))
         self.recording_status.setStyleSheet("color: green; font-weight: bold;")
         
         # UI zurücksetzen
@@ -503,8 +504,8 @@ class InputPanel(QWidget):
         QMessageBox.information(
             self,
             tr("input_recording_saved_title"),
-            f"{tr('input_recording_saved_msg')}\n\nDatei: {path.name}\nGröße: {size_mb:.1f} MB\n\n"
-            f"Die Datei wurde automatisch als Input-Datei ausgewählt."
+            f"{tr('input_recording_saved_msg')}\n\n{tr('input_file_label')}: {path.name}\n{tr('input_size_label')}: {size_mb:.1f} MB\n\n"
+            f"{tr('input_auto_selected_msg')}"
         )
     
     def get_selected_file(self) -> Optional[str]:
@@ -519,11 +520,11 @@ class InputPanel(QWidget):
         """Gibt den aktuellen Input-Modus zurück: 'file', 'batch', oder 'live'."""
         current_index = self.tabs.currentIndex()
         if current_index == 0:
-            return 'file'
-        elif current_index == 1:
-            return 'batch'
-        elif current_index == 2:
             return 'live'
+        elif current_index == 1:
+            return 'file'
+        elif current_index == 2:
+            return 'batch'
         return 'file'
     
     def is_batch_mode(self) -> bool:
@@ -541,3 +542,25 @@ class InputPanel(QWidget):
         if hasattr(self, 'batch_panel'):
             return self.batch_panel.get_options()
         return {}
+
+    def refresh_translations(self):
+        """Aktualisiert alle übersetzbaren Texte nach einem Sprachwechsel."""
+        from .translations import tr
+
+        # Tab-Titel
+        self.tabs.setTabText(0, "🎤 " + tr("input_live_tab"))
+        self.tabs.setTabText(1, "📁 " + tr("input_file_tab"))
+        self.tabs.setTabText(2, "📦 " + tr("input_batch_tab"))
+
+        # File-Tab Widgets
+        self.file_path_display.setPlaceholderText(tr("input_placeholder"))
+        self.file_path_display.setToolTip(tr("tooltip_input_file"))
+
+        # Live-Tab Widgets
+        self.mic_combo.setToolTip(tr("tooltip_input_live"))
+        self.recording_status.setText("🔴 " + tr("input_status_ready"))
+        self.btn_start_recording.setText(tr("input_btn_start"))
+        self.btn_start_recording.setToolTip(tr("tooltip_input_live"))
+        self.btn_stop_recording.setText(tr("input_btn_stop"))
+        self.btn_stop_recording.setToolTip(tr("input_stop_tooltip"))
+

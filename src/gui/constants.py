@@ -1,0 +1,60 @@
+"""
+Zentrale Konstanten für die V-SpeechFlow GUI.
+
+Sammelt Magic Numbers, Farben, Timings und andere wiederkehrende Werte.
+"""
+
+# ===== Farben =====
+COLOR_SUCCESS = "#4CAF50"
+COLOR_SUCCESS_DARK = "#43A047"
+COLOR_ERROR = "#f44336"
+COLOR_ERROR_DARK = "#E53935"
+COLOR_WARNING = "#FF9800"
+COLOR_INFO = "#2196F3"
+COLOR_GRAY = "gray"
+COLOR_ORANGE = "orange"
+COLOR_GREEN = "green"
+COLOR_RED = "red"
+
+# Drag & Drop Farben
+COLOR_DROP_ACCEPT_BORDER = "#4CAF50"
+COLOR_DROP_ACCEPT_BG = "#f0f8f0"
+COLOR_DROP_REJECT_BORDER = "#f44336"
+COLOR_DROP_REJECT_BG = "#f8f0f0"
+
+# ===== Font-Größen =====
+SECTION_TITLE_FONT_SIZE = 13
+WIZARD_TITLE_FONT_SIZE = 17
+GUI_TITLE_FONT_SIZE = 19
+TRANSCRIPTION_TITLE_FONT_SIZE = 14
+HINT_FONT_SIZE_PX = "10px"
+INFO_FONT_SIZE_PX = "11px"
+DETAIL_FONT_SIZE_PX = "11px"
+
+# ===== Timings (Millisekunden) =====
+ONBOARDING_DELAY_MS = 500
+ONBOARDING_OFFER_DELAY_MS = 1000
+STARTUP_CONFIG_DELAY_MS = 100
+MODEL_CHECK_DELAY_MS = 3000
+STATUS_TIMER_MS = 5000
+PROGRESS_TIMER_MS = 1000
+RECORDING_WAIT_MS = 2000
+CLI_STOP_WAIT_MS = 3000
+BATCH_STOP_WAIT_MS = 3000
+
+# ===== Fenster-Dimensionen =====
+MAIN_WINDOW_SIZE = (1400, 900)
+WIZARD_SIZE = (700, 500)
+
+# ===== Unterstützte Audio-Formate =====
+SUPPORTED_AUDIO_FORMATS = ("mp3", "m4a", "wav", "flac", "ogg")
+
+# ===== Toggle-Button =====
+TOGGLE_BUTTON_WIDTH = 25
+TOGGLE_EXPANDED = "▼"
+TOGGLE_COLLAPSED = "▶"
+
+# ===== Sonstige =====
+MAX_HISTORY_ITEMS = 20
+PROFILE_BUTTON_WIDTH = 35
+VOLUME_AMPLIFICATION = 3  # Verstärkungsfaktor für Volume-Meter
