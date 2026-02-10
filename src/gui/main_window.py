@@ -256,6 +256,9 @@ class MainWindow(QMainWindow):
         
         # Model-Update-Check beim Start (verzögert)
         QTimer.singleShot(3000, self.check_model_updates)  # Nach 3 Sekunden
+        
+        # UI-Texte mit korrekten Übersetzungen initialisieren
+        QTimer.singleShot(100, self.refresh_ui)
     
     def on_file_selected(self, file_path: str):
         """Wird aufgerufen wenn eine Datei ausgewählt wird."""
@@ -709,6 +712,12 @@ class MainWindow(QMainWindow):
         
         self.help_menu.addSeparator()
         
+        shortcuts_action = QAction("⌨️ " + tr("menu_shortcuts"), self)
+        shortcuts_action.triggered.connect(self.show_shortcuts)
+        self.help_menu.addAction(shortcuts_action)
+        
+        self.help_menu.addSeparator()
+        
         about_action = QAction("ℹ️ " + tr("menu_about"), self)
         about_action.triggered.connect(self.show_about)
         self.help_menu.addAction(about_action)
@@ -850,6 +859,60 @@ class MainWindow(QMainWindow):
             "<p>Powered by Whisper.cpp und pyannote.audio</p>"
             "<p>© 2026 V-SpeechFlow Team</p>"
         )
+    
+    def show_shortcuts(self):
+        """Zeigt Dialog mit allen Tastenkürzel und deren Funktionen."""
+        shortcuts_text = f"""
+        <h2>{tr("shortcuts_title")}</h2>
+        <table border="1" cellpadding="8" cellspacing="0" width="100%">
+            <tr style="background-color: rgba(100, 150, 255, 0.2);">
+                <th align="left"><b>Tastenkombination</b></th>
+                <th align="left"><b>Funktion</b></th>
+            </tr>
+            <tr>
+                <td><code>Ctrl+Return</code></td>
+                <td>{tr("shortcuts_start_transcription")}</td>
+            </tr>
+            <tr>
+                <td><code>Escape</code></td>
+                <td>{tr("shortcuts_stop_transcription")}</td>
+            </tr>
+            <tr>
+                <td><code>Ctrl+S</code></td>
+                <td>{tr("shortcuts_save_profile")}</td>
+            </tr>
+            <tr>
+                <td><code>Ctrl+L</code></td>
+                <td>{tr("shortcuts_clear_output")}</td>
+            </tr>
+            <tr>
+                <td><code>Ctrl+B</code></td>
+                <td>{tr("shortcuts_batch_processing")}</td>
+            </tr>
+            <tr>
+                <td><code>Ctrl+Q</code></td>
+                <td>{tr("shortcuts_quit")}</td>
+            </tr>
+        </table>
+        """
+        
+        msg = QMessageBox(self)
+        msg.setWindowTitle(f"⌨️ {tr('shortcuts_title')}")
+        msg.setText(shortcuts_text)
+        msg.setTextFormat(Qt.TextFormat.RichText)
+        msg.setIcon(QMessageBox.Icon.Information)
+        msg.setStyleSheet("""
+            QMessageBox {
+                background-color: rgba(240, 240, 240, 0.95);
+            }
+            QMessageBox QLabel {
+                color: inherit;
+            }
+            QMessageBox QMessageBox {
+                min-width: 400px;
+            }
+        """)
+        msg.exec()
     
     def open_batch_window(self):
         """Aktiviert den Batch-Tab im Input-Panel."""
@@ -1481,7 +1544,7 @@ class MainWindow(QMainWindow):
         
         # Clear und neu befüllen
         self.profile_combo.clear()
-        self.profile_combo.addItem("-- Aktuell (nicht gespeichert) --")
+        self.profile_combo.addItem(tr("profile_current_unsaved"))
         
         # Favoriten laden
         favorites = self.profile_manager.get_favorites()
@@ -1952,7 +2015,7 @@ class MainWindow(QMainWindow):
         # Profile Combo Box - erste Item
         current_text = self.profile_combo.currentText()
         if current_text == "-- Aktuell (nicht gespeichert) --" or current_text == "-- Current (not saved) --":
-            self.profile_combo.setItemText(0, tr("profile_current_unsaved"))
+            self.profile_combo.setItemText(0, tr("profile_current_unsaved")) 
         
         # Profile Buttons Tooltips aktualisieren
         for btn in self.findChildren(QPushButton):
@@ -2021,6 +2084,8 @@ class MainWindow(QMainWindow):
                 text = action.text()
                 if '🎓' in text:
                     action.setText("🎓 " + tr("menu_start_onboarding"))
+                elif '⌨️' in text:
+                    action.setText("⌨️ " + tr("menu_shortcuts"))
                 elif 'ℹ️' in text:
                     action.setText("ℹ️ " + tr("menu_about"))
         

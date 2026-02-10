@@ -66,9 +66,9 @@ class InputPanel(QWidget):
         
         # Tab Widget: Datei vs Batch vs Live
         self.tabs = QTabWidget()
-        self.tabs.addTab(self.create_live_tab(), "🎤 Live")
-        self.tabs.addTab(self.create_file_tab(), "📁 Datei")
-        self.tabs.addTab(self.create_batch_tab(), "📦 Batch")
+        self.tabs.addTab(self.create_live_tab(), "🎤 " + tr("input_live_tab"))
+        self.tabs.addTab(self.create_file_tab(), "📁 " + tr("input_file_tab"))
+        self.tabs.addTab(self.create_batch_tab(), "📦 " + tr("input_batch_tab"))
         
         layout.addWidget(self.tabs)
         self.setLayout(layout)
