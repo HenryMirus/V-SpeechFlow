@@ -115,7 +115,7 @@
 - [x] Models direkt in models-Ordner laden
 - [x] Models in Profilen speichern
 - [x] Model Schnellauswahl "leeren" wenn Profil ausgewählt wird
-- [ ] Volume-Anzeige auf 0 setzen, wenn recording beendet wurde
+- [x] Volume-Anzeige auf 0 setzen, wenn recording beendet wurde
 - [ ] Transkriptordner wird nach Transkription geöffnet, aber die Datei soll geöffnet werden.
 - [ ] Batch-Verarbeitung Drag&Drop aktivieren
 - [ ] Batch-Verarbeitung Transkritption funktioniert nicht

@@ -493,6 +493,7 @@ class InputPanel(QWidget):
         self.recording_status.setStyleSheet("color: green; font-weight: bold;")
         
         # UI zurücksetzen
+        self.volume_bar.setValue(0)
         self.btn_start_recording.setEnabled(True)
         self.btn_stop_recording.setEnabled(False)
         self.mic_combo.setEnabled(True)
