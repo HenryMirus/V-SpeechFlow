@@ -7,9 +7,12 @@ Verwaltung von Whisper.cpp Modellen (Download, Validierung, Info).
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 import hashlib
+import logging
 import requests
 from datetime import datetime, timedelta
 import json
+
+logger = logging.getLogger(__name__)
 
 
 # Vordefinierte Modelle für V-SpeechFlow
@@ -173,7 +176,7 @@ def get_model_hash(model_path: str) -> Optional[str]:
         
         return sha256_hash.hexdigest()
     except Exception as e:
-        print(f"Error calculating hash: {e}")
+        logger.error(f"Error calculating hash: {e}")
         return None
 
 
@@ -283,7 +286,7 @@ def save_update_cache(cache_data: Dict):
         with open(cache_path, 'w') as f:
             json.dump(cache_data, f, indent=2)
     except Exception as e:
-        print(f"Error saving update cache: {e}")
+        logger.error(f"Error saving update cache: {e}")
 
 
 def should_check_for_updates(model_path: str, check_interval_hours: int = 24) -> bool:

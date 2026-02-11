@@ -14,6 +14,9 @@ from .progress_tracker import ProgressTracker
 from .translations import tr
 from .constants import CLI_STOP_WAIT_MS, BATCH_STOP_WAIT_MS, PROGRESS_TIMER_MS
 from .utils import classify_process_error, is_whisper_debug_line, is_stderr_error_line
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class TranscriptionController:
@@ -93,10 +96,10 @@ class TranscriptionController:
 
     def start_transcription(self):
         """Startet die Transkription mit vollständiger Validierung."""
-        self.mw.log_info("=== Start Transkription angefordert ===")
+        logger.info("=== Transcription start requested ===")
 
         if self.mw.is_processing:
-            self.mw.log_warning("Transkription bereits aktiv, Abbruch")
+            logger.warning("Transcription already active, aborting")
             QMessageBox.warning(
                 self.mw, tr('main_already_active_title'), tr('main_already_active_msg')
             )
@@ -129,11 +132,11 @@ class TranscriptionController:
             validation_errors.append(f"❌ Output: {error}")
 
         if validation_errors:
-            self.mw.log_error(
-                f"Validierungsfehler: {len(validation_errors)} Fehler gefunden"
+            logger.error(
+                f"Validation failed: {len(validation_errors)} error(s)"
             )
             for error in validation_errors:
-                self.mw.log_error(f"  - {error}")
+                logger.error(f"  - {error}")
             error_message = (
                 f"{tr('main_validation_fix_errors')}\n\n" +
                 "\n".join(validation_errors)
@@ -146,9 +149,9 @@ class TranscriptionController:
         # === CLI-Argumente zusammenstellen ===
         try:
             cli_args = self.build_cli_arguments()
-            self.mw.log_info(f"CLI-Argumente: {' '.join(cli_args)}")
+            logger.info(f"CLI arguments: {' '.join(cli_args)}")
         except Exception as e:
-            self.mw.log_error(f"Fehler beim Erstellen der CLI-Argumente: {str(e)}")
+            logger.error(f"Error building CLI arguments: {str(e)}")
             QMessageBox.critical(
                 self.mw, tr('main_error'),
                 f"{tr('main_cli_error')}\n{str(e)}"
@@ -173,7 +176,7 @@ class TranscriptionController:
         self.mw.statusBar().showMessage(tr("status_transcription_running"))
 
         # === CLI-Worker starten ===
-        self.mw.log_info("CLI-Worker wird gestartet...")
+        logger.info("Starting CLI worker...")
 
         # Progress Tracker initialisieren
         self.mw.progress_tracker = ProgressTracker(
@@ -194,7 +197,7 @@ class TranscriptionController:
         self.mw.cli_worker.error_received.connect(self.on_cli_error)
         self.mw.cli_worker.process_finished.connect(self.on_cli_finished)
         self.mw.cli_worker.start()
-        self.mw.log_info("CLI-Worker gestartet")
+        logger.info("CLI worker started")
 
         # Progress Timer starten
         self.mw.progress_timer.start(PROGRESS_TIMER_MS)
@@ -213,7 +216,7 @@ class TranscriptionController:
         if not self.mw.is_processing or not self.mw.cli_worker:
             return
 
-        self.mw.log_info("Stop Transkription angefordert")
+        logger.info("Transcription stop requested")
 
         reply = QMessageBox.question(
             self.mw,
@@ -224,7 +227,7 @@ class TranscriptionController:
         )
 
         if reply == QMessageBox.StandardButton.Yes:
-            self.mw.log_warning("Transkription wird abgebrochen...")
+            logger.warning("Transcription abort requested by user...")
             self.mw.append_output("\n⏹️ Transkription wird abgebrochen...")
             self.mw.statusBar().showMessage("⏹️ Abbruch...")
 
@@ -237,7 +240,7 @@ class TranscriptionController:
                     self.mw.cli_worker.wait()
 
             self.mw.append_output("❌ Transkription abgebrochen")
-            self.mw.log_info("Transkription abgebrochen")
+            logger.info("Transcription aborted")
             self.mw.is_processing = False
             self.mw.progress_bar.setVisible(False)
             self.mw.eta_label.setVisible(False)
@@ -251,6 +254,7 @@ class TranscriptionController:
 
     def on_cli_output(self, text: str):
         """Wird aufgerufen wenn CLI stdout Output empfängt."""
+        logger.debug(f"CLI stdout: {text}")
         self.mw.append_output(text)
 
         if self.mw.progress_tracker.parse_output_line(text):
@@ -273,7 +277,7 @@ class TranscriptionController:
 
     def on_cli_finished(self, return_code: int):
         """Wird aufgerufen wenn der CLI-Prozess beendet ist."""
-        self.mw.log_info(f"CLI-Prozess beendet mit Exit-Code: {return_code}")
+        logger.info(f"CLI process finished with exit code: {return_code}")
         self.mw.is_processing = False
         self.mw.progress_bar.setVisible(False)
         self.mw.eta_label.setVisible(False)
@@ -415,7 +419,7 @@ class TranscriptionController:
 
     def start_batch_processing(self):
         """Startet das Batch-Processing."""
-        self.mw.log_info("=== Batch-Processing gestartet ===")
+        logger.info("=== Batch processing started ===")
 
         files = self.mw.input_panel.get_batch_files()
         if not files:
@@ -478,7 +482,7 @@ class TranscriptionController:
         self.mw.batch_worker.output_received.connect(self.on_cli_output)
         self.mw.batch_worker.start()
 
-        self.mw.log_info(f"Batch-Worker gestartet für {len(files)} Dateien")
+        logger.info(f"Batch worker started for {len(files)} files")
 
     def stop_batch_processing(self):
         """Stoppt das Batch-Processing."""
@@ -494,7 +498,7 @@ class TranscriptionController:
         )
 
         if reply == QMessageBox.StandardButton.Yes:
-            self.mw.log_warning("Batch-Processing wird abgebrochen...")
+            logger.warning("Batch processing abort requested by user...")
             self.mw.append_output("\n⏹️ Batch-Processing wird abgebrochen...\n")
 
             if self.mw.batch_worker:
@@ -506,7 +510,7 @@ class TranscriptionController:
                     self.mw.batch_worker.wait()
 
             self.mw.append_output("❌ Batch-Processing abgebrochen\n")
-            self.mw.log_info("Batch-Processing abgebrochen")
+            logger.info("Batch processing aborted")
             self.cleanup_after_batch()
 
     def on_batch_progress(self, current: int, total: int, filename: str):
@@ -519,7 +523,7 @@ class TranscriptionController:
 
     def on_batch_file_finished(self, filepath: str, success: bool, message: str):
         """Wird aufgerufen wenn eine Datei fertig ist."""
-        self.mw.log_info(f"Batch-Datei fertig: {filepath} - {message}")
+        logger.info(f"Batch file done: {filepath} - success={success} - {message}")
         self.mw.reset_diarization_warning()
 
     def on_batch_finished(self, successful: int, failed: int, warned: int = 0,
@@ -530,8 +534,8 @@ class TranscriptionController:
         if warned_files is None:
             warned_files = []
         
-        self.mw.log_info(
-            f"Batch abgeschlossen: {successful} erfolgreich, {failed} fehlgeschlagen, {warned} mit Warnungen"
+        logger.info(
+            f"Batch completed: {successful} successful, {failed} failed, {warned} warned"
         )
 
         self.mw.append_output(f"\n{'=' * 60}\n")

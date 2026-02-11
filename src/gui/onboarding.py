@@ -17,7 +17,10 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QRect, QPoint, pyqtSignal, QTimer
 from PyQt6.QtGui import QPainter, QColor, QPen, QFont, QPalette
+import logging
 from .translations import tr
+
+logger = logging.getLogger(__name__)
 from .history import HistoryManager
 
 
@@ -152,9 +155,9 @@ class OnboardingManager:
         self.highlight_overlay = None  # Overlay-Frame für Highlighting
         
         if not self.history_manager.is_onboarding_completed():
-            print("OnboardingManager: Onboarding wird gestartet...")
+            logger.info("OnboardingManager: Starting onboarding...")
             self.create_steps()
-        print("OnboardingManager: Fertig initialisiert")
+        logger.debug("OnboardingManager: Initialization complete")
     
     def create_steps(self):
         """Erstellt die Onboarding-Schritte in neuer Reihenfolge."""
@@ -273,10 +276,7 @@ class OnboardingManager:
         
         step = self.steps[index]
         
-        print(f"\n=== Showing step {index + 1}/{len(self.steps)} ===")
-        print(f"Title: {step.title}")
-        print(f"Target widget: {step.target_widget.__class__.__name__ if step.target_widget else 'None'}")
-        print(f"Tab index: {step.tab_index}")
+        logger.debug(f"Showing step {index + 1}/{len(self.steps)} - Title: {step.title}, Target: {step.target_widget.__class__.__name__ if step.target_widget else 'None'}, Tab: {step.tab_index}")
         
         # Dialog aktualisieren
         self.dialog.set_step(
@@ -297,14 +297,14 @@ class OnboardingManager:
             # Wenn ein Tab-Index angegeben ist (für InputPanel), wechsle zum Tab
             if step.tab_index is not None and hasattr(step.target_widget, 'tabs'):
                 step.target_widget.tabs.setCurrentIndex(step.tab_index)
-                print(f"Switched to tab {step.tab_index}")
+                logger.debug(f"Switched to tab {step.tab_index}")
             
             # Widget highlighten
             if step.target_widget.isVisible():
-                print(f"Widget is visible, highlighting...")
+                logger.debug(f"Widget is visible, highlighting...")
                 self._highlight_widget(step.target_widget)
             else:
-                print(f"Warning: Widget is not visible!")
+                logger.warning(f"Widget is not visible!")
                 
             # Auto-Scroll zum Widget
             self._scroll_to_widget(step.target_widget)
@@ -364,8 +364,8 @@ class OnboardingManager:
             self.highlight_update_timer.timeout.connect(self._update_highlight_position)
         self.highlight_update_timer.start(100)  # Alle 100ms Position aktualisieren
         
-        print(f"Highlighting widget: {widget.__class__.__name__} at {widget.geometry()}")
-        print(f"Overlay created at: {self.highlight_overlay.geometry()}")
+        logger.debug(f"Highlighting widget: {widget.__class__.__name__} at {widget.geometry()}")
+        logger.debug(f"Overlay created at: {self.highlight_overlay.geometry()}")
     
     def _is_child_of(self, widget: QWidget, potential_parent: QWidget) -> bool:
         """Prüft ob widget ein Kind von potential_parent ist."""
@@ -442,7 +442,7 @@ class OnboardingManager:
             animate_scroll()
             
         except Exception as e:
-            print(f"Fehler beim Scrollen: {e}")
+            logger.warning(f"Error scrolling to widget: {e}")
             # Fallback: Direktes Scrollen ohne Animation
             try:
                 scroll_area.ensureWidgetVisible(widget, 50, 50)
@@ -493,12 +493,12 @@ class OnboardingManager:
                 # Aktuelles Panel expandieren
                 if not section.is_expanded:
                     section.set_expanded(True)
-                    print(f"Expanded panel: {panel_name}")
+                    logger.debug(f"Expanded panel: {panel_name}")
             else:
                 # Andere Panels kollabieren
                 if section.is_expanded:
                     section.set_expanded(False)
-                    print(f"Collapsed panel: {panel_name}") 
+                    logger.debug(f"Collapsed panel: {panel_name}") 
     
     def next_step(self):
         """Geht zum nächsten Schritt."""

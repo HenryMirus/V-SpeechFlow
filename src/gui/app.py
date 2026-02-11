@@ -11,6 +11,9 @@ from .main_window import MainWindow
 from .history import HistoryManager
 from .installation_wizard import InstallationWizard
 from .onboarding import OnboardingManager
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def main():
@@ -36,7 +39,7 @@ def main():
             """Handler wenn Wizard abgeschlossen wurde."""
             # History neu laden um Wizard-Änderungen zu übernehmen
             window.history_manager.history_data = window.history_manager._load_history()
-            print(f"✓ History nach Wizard neu geladen: first_run={window.history_manager.is_first_run()}, wizard_completed={window.history_manager.is_wizard_completed()}")
+            logger.info(f"History reloaded after wizard: first_run={window.history_manager.is_first_run()}, wizard_completed={window.history_manager.is_wizard_completed()}")
             
             # Fenster anzeigen
             window.show()

@@ -7,6 +7,9 @@ Startup-Config, Last-Session, Wizard-Settings.
 
 from pathlib import Path
 from .translations import tr, set_language
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class SessionManager:
@@ -40,8 +43,8 @@ class SessionManager:
         }
 
         self.history_manager.save_last_session(session_data, current_profile)
-        self.mw.log_info(
-            f"Session saved to history (Profile: {current_profile or 'None'})"
+        logger.info(
+            f"Session saved (Profile: {current_profile or 'None'})"
         )
 
     def load_startup_config(self):
@@ -53,11 +56,11 @@ class SessionManager:
         initial_config = self.history_manager.get_initial_config()
 
         if initial_config:
-            self.mw.log_info("First start after wizard - loading initial config")
+            logger.info("First start after wizard - loading initial config")
             self.load_initial_config(initial_config)
             self.history_manager.mark_initial_config_applied()
         else:
-            self.mw.log_info("Loading last session")
+            logger.info("Loading last session")
             self.load_last_session()
 
     def load_initial_config(self, config: dict):
@@ -68,42 +71,37 @@ class SessionManager:
         Args:
             config: Dictionary mit Wizard-Einstellungen
         """
-        self.mw.log_info("Loading initial config from wizard...")
-        print(f"\n=== Loading initial config (first start) ===")
-        print(f"Config keys: {list(config.keys())}")
+        logger.info(f"Loading initial config from wizard, keys: {list(config.keys())}")
 
         # Model Panel
         if 'default_model' in config and config['default_model']:
             model_path = config['default_model']
             if Path(model_path).exists():
                 self.mw.model_panel.set_model_path(model_path)
-                self.mw.log_info(f"Model loaded from initial config: {model_path}")
-                print(f"  ✓ Model: {model_path}")
+                logger.info(f"Model loaded from initial config: {model_path}")
             else:
-                self.mw.log_warning(
+                logger.warning(
                     f"Model from initial config not found: {model_path}"
                 )
-                print(f"  ✗ Model not found: {model_path}")
 
         # Settings Panel
         settings_data = {}
         if 'default_threads' in config:
             settings_data['threads'] = config['default_threads']
-            print(f"  ✓ Threads: {config['default_threads']}")
+            logger.debug(f"Threads from config: {config['default_threads']}")
         if 'default_language' in config:
             settings_data['language'] = config['default_language']
-            print(f"  ✓ Language: {config['default_language']}")
+            logger.debug(f"Language from config: {config['default_language']}")
 
         if settings_data:
             self.mw.settings_panel.set_settings(settings_data)
-            self.mw.log_info(f"Settings loaded from initial config: {settings_data}")
+            logger.info(f"Settings loaded from initial config: {settings_data}")
 
         # Output Panel - auto_open_transcript
         if 'auto_open_transcript' in config:
             auto_open = config['auto_open_transcript']
             self.mw.output_panel.set_auto_open(auto_open)
-            self.mw.log_info(f"Auto-open from initial config: {auto_open}")
-            print(f"  ✓ Auto-Open: {auto_open}")
+            logger.info(f"Auto-open from initial config: {auto_open}")
 
         # Theme
         if 'preferred_theme' in config:
@@ -111,9 +109,9 @@ class SessionManager:
             self.mw.apply_theme(theme)
             if hasattr(self.mw, 'menu_manager') and self.mw.menu_manager.theme_toggle_switch:
                 self.mw.menu_manager.update_theme_switch()
-            print(f"  ✓ Theme: {theme}")
+            logger.info(f"Theme from initial config: {theme}")
 
-        print("=== Initial config loaded successfully ===")
+        logger.info("Initial config loaded successfully")
         self.mw.statusBar().showMessage(tr("loading_initial_config"), 3000)
 
     def load_last_session(self):
@@ -124,28 +122,25 @@ class SessionManager:
         last_session = self.history_manager.get_last_session()
 
         if not last_session:
-            self.mw.log_info("No last session found")
+            logger.info("No last session found")
             return
 
         profile_name = last_session.get('profile_name')
         session_data = last_session.get('data')
 
         if not session_data:
-            self.mw.log_info("Session data is empty")
+            logger.info("Session data is empty")
             return
 
-        self.mw.log_info(
+        logger.info(
             f"Loading last session (Profile: {profile_name or 'None'})"
         )
-        print(f"\n=== Loading last session ===")
-        print(f"Profile: {profile_name or 'None'}")
 
         # Wenn ein Profil aktiv war, versuche es zu laden
         if profile_name and profile_name != '-- Aktuell (nicht gespeichert) --':
             profile_data = self.mw.profile_manager.get_profile(profile_name)
             if profile_data:
-                self.mw.log_info(f"Loading profile: {profile_name}")
-                print(f"  ✓ Profile '{profile_name}' loaded")
+                logger.info(f"Loading profile from last session: {profile_name}")
 
                 index = self.mw.profile_combo.findText(profile_name)
                 if index >= 0:
@@ -165,40 +160,39 @@ class SessionManager:
                 )
                 return
             else:
-                self.mw.log_warning(f"Profile '{profile_name}' not found")
-                print(f"  ✗ Profile not found, loading session data")
+                logger.warning(f"Profile '{profile_name}' not found, loading session data")
 
         # No profile or not found - load session data directly
-        print("  ✓ Loading session data")
+        logger.debug("Loading session data directly")
 
         if 'input_file' in session_data:
             input_file = session_data['input_file']
             if input_file and Path(input_file).exists():
                 self.mw.input_panel.set_file_path(input_file)
-                print(f"    - Input: {Path(input_file).name}")
+                logger.debug(f"Session input: {Path(input_file).name}")
 
         if 'model' in session_data:
             model_path = session_data['model']
             if model_path and Path(model_path).exists():
                 self.mw.model_panel.set_model_path(model_path)
-                print(f"    - Model: {Path(model_path).name}")
+                logger.debug(f"Session model: {Path(model_path).name}")
 
         if 'settings' in session_data:
             self.mw.settings_panel.set_settings(session_data['settings'])
-            print(
-                f"    - Settings: {session_data['settings'].get('threads')} threads"
+            logger.debug(
+                f"Session settings: {session_data['settings'].get('threads')} threads"
             )
 
         if 'diarization' in session_data:
             self.mw.diarization_panel.set_settings(session_data['diarization'])
             enabled = session_data['diarization'].get('enabled')
-            print(f"    - Diarization: {'Yes' if enabled else 'No'}")
+            logger.debug(f"Session diarization: {'Yes' if enabled else 'No'}")
 
         if 'output' in session_data:
             self.mw.output_panel.set_settings(session_data['output'])
-            print(f"    - Output: {session_data['output'].get('format')}")
+            logger.debug(f"Session output format: {session_data['output'].get('format')}")
 
-        print("=== Last session loaded successfully ===")
+        logger.info("Last session loaded successfully")
         self.mw.statusBar().showMessage(tr("loading_last_session"), 3000)
 
     def apply_wizard_settings(self, data: dict):
@@ -208,27 +202,27 @@ class SessionManager:
         Args:
             data: Dict mit Wizard-Daten (model, token, language, theme, etc.)
         """
-        self.mw.log_info("Applying wizard settings...")
+        logger.info("Applying wizard settings...")
 
         if data.get('default_model'):
             model_path = data['default_model']
             if Path(model_path).exists():
                 self.mw.model_panel.set_model_path(model_path)
-                self.mw.log_info(f"Model set from wizard: {model_path}")
+                logger.info(f"Model set from wizard: {model_path}")
 
         if data.get('hf_token'):
             self.mw.diarization_panel.set_hf_token(data['hf_token'])
-            self.mw.log_info("HF Token set from wizard")
+            logger.info("HF Token set from wizard")
 
         if data.get('default_threads'):
             self.mw.settings_panel.set_threads(data['default_threads'])
-            self.mw.log_info(f"Threads set from wizard: {data['default_threads']}")
+            logger.info(f"Threads set from wizard: {data['default_threads']}")
 
         if data.get('ui_language'):
             language = data['ui_language']
             set_language(language)
             self.history_manager.save_user_preference('ui_language', language)
-            self.mw.log_info(f"Language set from wizard: {language}")
+            logger.info(f"Language set from wizard: {language}")
 
         if data.get('preferred_theme'):
             theme = data['preferred_theme']
@@ -238,4 +232,4 @@ class SessionManager:
         if data.get('auto_open_transcript'):
             self.mw.output_panel.set_auto_open(True)
 
-        self.mw.log_info("Wizard settings applied successfully")
+        logger.info("Wizard settings applied successfully")

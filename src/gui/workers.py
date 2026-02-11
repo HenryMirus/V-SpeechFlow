@@ -11,6 +11,9 @@ import re
 from pathlib import Path
 from PyQt6.QtCore import QThread, pyqtSignal
 from .utils import parse_timestamp
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class CLIWorker(QThread):
@@ -48,12 +51,14 @@ class CLIWorker(QThread):
             
             # Check if CLI script exists
             if not cli_script.exists():
+                logger.error(f"CLI script not found: {cli_script}")
                 self.error_received.emit(f"CLI script not found: {cli_script}")
                 self.process_finished.emit(1)
                 return
             
             # Kommando zusammenstellen
             cmd = [sys.executable, str(cli_script)] + self.arguments
+            logger.info(f"CLI worker starting: {' '.join(cmd)}")
             
             # Subprocess starten
             self.process = subprocess.Popen(
@@ -109,13 +114,16 @@ class CLIWorker(QThread):
             stderr_thread.join(timeout=2)
             
             self.process_finished.emit(return_code)
+            logger.info(f"CLI worker finished with exit code: {return_code}")
             
         except Exception as e:
+            logger.error(f"CLI worker error: {str(e)}")
             self.error_received.emit(f"Error starting CLI: {str(e)}")
             self.process_finished.emit(1)
     
     def stop(self):
         """Beendet den laufenden Prozess."""
+        logger.info("CLI worker stop requested")
         if self.process:
             try:
                 self.process.terminate()
@@ -150,6 +158,7 @@ class RecordingWorker(QThread):
     
     def run(self):
         """Führt die Aufnahme aus."""
+        logger.info(f"Recording worker started: device={self.device_index}, output={self.output_path}")
         try:
             # LiveRecorder aus dem python-Modul importieren
             from ..python.live_recorder import LiveRecorder
@@ -190,9 +199,11 @@ class RecordingWorker(QThread):
             self.recorder.save_wav(self.output_path)
             
             # Erfolg signalisieren
+            logger.info(f"Recording saved: {self.output_path}")
             self.recording_finished.emit(str(self.output_path))
             
         except Exception as e:
+            logger.error(f"Recording error: {str(e)}")
             self.recording_error.emit(f"Recording error: {str(e)}")
         
         finally:
@@ -225,6 +236,7 @@ class ModelDownloadWorker(QThread):
     def run(self):
         """Führt den Download aus."""
         import requests
+        logger.info(f"Download worker started: {self.url} -> {self.dest_path}")
 
         try:
             # Zielverzeichnis erstellen
@@ -258,9 +270,11 @@ class ModelDownloadWorker(QThread):
 
             # Download abgeschlossen – umbenennen
             tmp_path.rename(self.dest_path)
+            logger.info(f"Download completed: {self.dest_path}")
             self.download_finished.emit(str(self.dest_path))
 
         except Exception as e:
+            logger.error(f"Download error: {str(e)}")
             # Aufräumen bei Fehler
             tmp_path = Path(str(self.dest_path) + '.part')
             if tmp_path.exists():

@@ -5,6 +5,8 @@ Extrahiert alle Profil-Operationen aus MainWindow:
 Speichern, Löschen, Duplizieren, Export/Import, Favoriten.
 """
 
+import logging
+
 from PyQt6.QtWidgets import (
     QComboBox,
     QPushButton,
@@ -18,6 +20,8 @@ from PyQt6.QtGui import QAction
 from pathlib import Path
 from datetime import datetime
 from .translations import tr
+
+logger = logging.getLogger(__name__)
 
 
 class ProfileController:
@@ -72,7 +76,7 @@ class ProfileController:
             self.profile_combo.setCurrentIndex(0)
 
         self.profile_combo.blockSignals(False)
-        self.mw.log_info(f"Profil-Liste aktualisiert: {len(profile_names)} Profile")
+        logger.debug(f"Profile list refreshed: {len(profile_names)} profiles")
 
     def on_profile_selected(self, text: str):
         """Wird aufgerufen wenn ein Profil ausgewählt wird."""
@@ -84,7 +88,7 @@ class ProfileController:
 
         profile = self.profile_manager.get_profile(profile_name)
         if not profile:
-            self.mw.log_warning(f"Profil nicht gefunden: {profile_name}")
+            logger.warning(f"Profile not found: {profile_name}")
             return
 
         # Model laden
@@ -102,7 +106,7 @@ class ProfileController:
             self.mw.output_panel.set_settings(profile['output'])
 
         self.mw.statusBar().showMessage(f"📁 Profil geladen: {profile_name}")
-        self.mw.log_info(f"Profil geladen: {profile_name}")
+        logger.info(f"Profile loaded: {profile_name}")
 
     def save_current_profile(self):
         """Speichert das aktuelle Profil."""
@@ -149,14 +153,14 @@ class ProfileController:
                 tr('main_success'),
                 tr('main_profile_saved', name=name)
             )
-            self.mw.log_info(f"Profil gespeichert: {name}")
+            logger.info(f"Profile saved: {name}")
         else:
             QMessageBox.critical(
                 self.mw,
                 tr('main_error'),
                 tr('main_profile_save_failed', name=name)
             )
-            self.mw.log_error(f"Fehler beim Speichern von Profil: {name}")
+            logger.error(f"Failed to save profile: {name}")
 
     def delete_selected_profile(self):
         """Löscht das aktuell ausgewählte Profil."""
@@ -194,14 +198,14 @@ class ProfileController:
                     tr('msg_profile_deleted_title'),
                     tr('msg_profile_deleted', name=profile_name)
                 )
-                self.mw.log_info(f"Profil gelöscht: {profile_name}")
+                logger.info(f"Profile deleted: {profile_name}")
             else:
                 QMessageBox.critical(
                     self.mw,
                     tr('main_error'),
                     tr('msg_profile_delete_error', name=profile_name)
                 )
-                self.mw.log_error(f"Fehler beim Löschen von Profil: {profile_name}")
+                logger.error(f"Failed to delete profile: {profile_name}")
 
     def duplicate_selected_profile(self):
         """Dupliziert das aktuell ausgewählte Profil."""
@@ -234,7 +238,7 @@ class ProfileController:
                     tr('msg_profile_duplicated_title'),
                     tr('msg_profile_duplicated', name=new_name)
                 )
-                self.mw.log_info(f"Profil dupliziert: {source_name} -> {new_name}")
+                logger.info(f"Profile duplicated: {source_name} -> {new_name}")
             else:
                 QMessageBox.critical(
                     self.mw,
@@ -285,14 +289,14 @@ class ProfileController:
         """Markiert/Entmarkiert Profil als Favorit."""
         if mark_as_favorite:
             if self.profile_manager.mark_as_favorite(profile_name):
-                self.mw.log_info(f"Profil als Favorit markiert: {profile_name}")
+                logger.info(f"Profile marked as favorite: {profile_name}")
             else:
                 QMessageBox.warning(
                     self.mw, tr('main_error'), tr('msg_favorite_mark_error')
                 )
         else:
             if self.profile_manager.unmark_as_favorite(profile_name):
-                self.mw.log_info(f"Favoriten-Markierung entfernt: {profile_name}")
+                logger.info(f"Profile unmarked as favorite: {profile_name}")
             else:
                 QMessageBox.warning(
                     self.mw, tr('main_error'), tr('msg_favorite_unmark_error')
@@ -328,7 +332,7 @@ class ProfileController:
                     tr('msg_profile_exported_title'),
                     tr('msg_profile_exported', path=file_path)
                 )
-                self.mw.log_info(f"Profil exportiert: {profile_name} -> {file_path}")
+                logger.info(f"Profile exported: {profile_name} -> {file_path}")
             else:
                 QMessageBox.critical(
                     self.mw, tr('main_error'), tr('msg_profile_export_error')
@@ -359,7 +363,7 @@ class ProfileController:
                     tr('msg_profile_imported_title'),
                     tr('msg_profile_imported', name=profile_name)
                 )
-                self.mw.log_info(f"Profil importiert: {file_path} -> {profile_name}")
+                logger.info(f"Profile imported: {file_path} -> {profile_name}")
             else:
                 QMessageBox.critical(
                     self.mw, tr('main_error'), tr('msg_profile_import_error')

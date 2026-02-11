@@ -5,9 +5,12 @@ Speichert und verwaltet zuletzt verwendete Dateien und Einstellungen.
 """
 
 import json
+import logging
 from pathlib import Path
 from typing import List, Dict, Optional
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 
 class HistoryManager:
@@ -32,7 +35,7 @@ class HistoryManager:
         self.history_dir.mkdir(parents=True, exist_ok=True)
         
         self.history_file = self.history_dir / "history.json"
-        print(f"History manager initialized. File: {self.history_file}")
+        logger.info(f"History manager initialized. File: {self.history_file}")
         self.history_data = self._load_history()
     
     def _load_history(self) -> dict:
@@ -87,9 +90,9 @@ class HistoryManager:
                 json.dump(data, f, indent=2, ensure_ascii=False)
                 f.flush()  # Puffer leeren
                 os.fsync(f.fileno())  # Sofort auf Festplatte schreiben
-            print(f"✓ History saved to: {self.history_file}")
+            logger.debug(f"History saved to: {self.history_file}")
         except IOError as e:
-            print(f"✗ ERROR: Could not save history: {e}")
+            logger.error(f"Could not save history: {e}")
     
     def _add_to_list(self, list_key: str, entry: dict, match_key: str = "path"):
         """
@@ -170,7 +173,7 @@ class HistoryManager:
             "data": session_data
         }
         self._save_history()
-        print(f"✓ Last session saved (Profile: {profile_name or 'None'})")
+        logger.info(f"Last session saved (Profile: {profile_name or 'None'})")
     
     def get_recent_input_files(self, limit: int = 10) -> List[dict]:
         """Gibt zuletzt verwendete Input-Dateien zurück."""
@@ -307,7 +310,7 @@ class HistoryManager:
             "applied": False  # Flag ob bereits angewendet
         }
         self._save_history()
-        print(f"✓ Initial config saved: {list(config.keys())}")
+        logger.info(f"Initial config saved: {list(config.keys())}")
     
     def get_initial_config(self) -> Optional[dict]:
         """
@@ -326,4 +329,4 @@ class HistoryManager:
         if self.history_data.get("initial_config"):
             self.history_data["initial_config"]["applied"] = True
             self._save_history()
-            print("✓ Initial config marked as applied")
+            logger.info("Initial config marked as applied")

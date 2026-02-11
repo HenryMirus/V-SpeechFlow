@@ -13,8 +13,11 @@ Bereitgestellt nur auf macOS, fallback auf anderen Systemen.
 """
 
 import sys
+import logging
 import subprocess
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 
 def save_hf_token_to_keychain(token: str, service_name: str = "HF_V-Speechflow") -> bool:
@@ -53,7 +56,7 @@ def save_hf_token_to_keychain(token: str, service_name: str = "HF_V-Speechflow")
         return result.returncode == 0
     
     except Exception as e:
-        print(f"Error saving token to keychain: {e}")
+        logger.error(f"Error saving token to keychain: {e}")
         return False
 
 

@@ -55,8 +55,11 @@ from .constants import (
     COLOR_ERROR,
     COLOR_ERROR_DARK,
 )
+from .log_config import setup_logging, set_log_level, get_log_level
 import logging
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 
 class MainWindow(QMainWindow):
@@ -296,10 +299,14 @@ class MainWindow(QMainWindow):
     
     def on_file_selected(self, file_path: str):
         """Wird aufgerufen wenn eine Datei ausgewählt wird."""
-        self.statusBar().showMessage(f"✓ {Path(file_path).name}")
+        p = Path(file_path)
+        size_mb = p.stat().st_size / 1024 / 1024 if p.exists() else 0
+        logger.info(f"File selected: {file_path} ({size_mb:.1f} MB)")
+        self.statusBar().showMessage(f"✓ {p.name}")
     
     def on_model_selected(self, model_path: str):
         """Wird aufgerufen wenn ein Modell ausgewählt wird."""
+        logger.info(f"Model selected: {model_path}")
         self.statusBar().showMessage(f"Modell ausgewählt: {model_path}")
     
     def on_settings_changed(self, settings: dict):
@@ -307,12 +314,14 @@ class MainWindow(QMainWindow):
         threads = settings.get('threads', 6)
         lang = settings.get('language', 'de')
         translate = "✓" if settings.get('translate') else "✗"
+        logger.info(f"Settings changed: threads={threads}, language={lang}, translate={settings.get('translate', False)}, keep_temp={settings.get('keep_temp', False)}")
         self.statusBar().showMessage(
             f"Threads: {threads} | Sprache: {lang} | Translation: {translate}"
         )
     
     def on_diarization_changed(self, settings: dict):
         """Wird aufgerufen wenn sich Diarization Settings ändern."""
+        logger.info(f"Diarization settings changed: enabled={settings.get('enabled')}, mode={settings.get('mode')}, num_speakers={settings.get('num_speakers')}, min={settings.get('min_speakers')}, max={settings.get('max_speakers')}")
         self.maybe_show_diarization_warning(settings)
         if settings.get('enabled'):
             mode = settings.get('mode', 'exact')
@@ -352,6 +361,7 @@ class MainWindow(QMainWindow):
     
     def on_output_changed(self, settings: dict):
         """Wird aufgerufen wenn sich Output Settings ändern."""
+        logger.info(f"Output settings changed: path={settings.get('output_path', 'Auto')}, format={settings.get('format', 'plain')}, timestamps={settings.get('timestamps')}, auto_open={settings.get('auto_open')}")
         output_path = settings.get('output_path', 'Auto')
         timestamps = "✓" if settings.get('timestamps') else "✗"
         format_type = settings.get('format', 'plain')
@@ -367,10 +377,12 @@ class MainWindow(QMainWindow):
     
     def on_recording_started(self):
         """Wird aufgerufen wenn Live-Recording startet."""
+        logger.info("Live recording started")
         self.statusBar().showMessage(tr("status_recording"))
     
     def on_recording_stopped(self):
         """Wird aufgerufen wenn Live-Recording endet."""
+        logger.info("Live recording stopped")
         self.statusBar().showMessage(tr("status_recording_stopped"))
     
     # ===== Shortcuts =====
@@ -403,26 +415,12 @@ class MainWindow(QMainWindow):
     # ===== Logging =====
     
     def setup_logging(self):
-        """Richtet das Logging-System ein."""
-        log_dir = Path.home() / "V-SpeechFlow" / "logs"
-        log_dir.mkdir(parents=True, exist_ok=True)
-        
-        log_file = log_dir / f"gui_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
-        
-        logging.basicConfig(
-            level=logging.INFO,
-            format='%(asctime)s - %(levelname)s - %(message)s',
-            handlers=[
-                logging.FileHandler(log_file, encoding='utf-8'),
-                logging.StreamHandler()
-            ]
-        )
-        
+        """Initializes the centralized logging system."""
+        # Load saved log level from preferences
+        saved_level = self.history_manager.get_user_preference('log_level', 'INFO')
+        level = getattr(logging, saved_level, logging.INFO)
+        self.log_file = setup_logging(log_level=level)
         self.logger = logging.getLogger(__name__)
-        self.logger.info("=" * 50)
-        self.logger.info("V-SpeechFlow GUI session started")
-        self.logger.info(f"Log file: {log_file}")
-        self.logger.info("=" * 50)
     
     def log_info(self, message: str):
         """Loggt eine Info-Nachricht."""
@@ -436,10 +434,15 @@ class MainWindow(QMainWindow):
         """Loggt eine Warning-Nachricht."""
         self.logger.warning(message)
     
+    def log_debug(self, message: str):
+        """Loggt eine Debug-Nachricht."""
+        self.logger.debug(message)
+    
     # ===== Theme =====
     
     def apply_theme(self, theme: str):
         """Wendet das gewählte Theme an."""
+        logger.info(f"Theme applied: {theme}")
         stylesheet = self.theme_manager.get_stylesheet(theme)
         self.setStyleSheet(stylesheet)
         
@@ -627,6 +630,7 @@ class MainWindow(QMainWindow):
     
     def check_model_updates(self):
         """Prüft auf Model-Updates (wird beim Start aufgerufen)."""
+        logger.debug("Checking for model updates...")
         model_path = self.model_panel.get_model_path()
         
         if not model_path or not Path(model_path).exists():
@@ -653,6 +657,7 @@ class MainWindow(QMainWindow):
     
     def show_update_notification(self, update_info: dict):
         """Zeigt eine Benachrichtigung über verfügbares Model-Update."""
+        logger.info(f"Model update available: {update_info}")
         model_name = update_info.get('model_name', 'Unknown')
         local_size = update_info.get('local_size_mb', 0)
         remote_size = update_info.get('remote_size_mb', 0)

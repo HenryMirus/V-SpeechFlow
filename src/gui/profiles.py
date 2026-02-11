@@ -5,10 +5,13 @@ Ermöglicht Speichern/Laden von Settings-Profilen.
 """
 
 import json
+import logging
 import os
 from pathlib import Path
 from typing import Dict, List, Optional
 from datetime import datetime
+
+logger = logging.getLogger(__name__)
 
 
 class ProfileManager:
@@ -16,7 +19,7 @@ class ProfileManager:
     
     def __init__(self):
         """Initialisiert den Profile-Manager."""
-        self.profiles_dir = Path.home() / ".vspeechflow" / "profiles"
+        self.profiles_dir = Path.home() / "V-SpeechFlow" / "profiles"
         self.profiles_dir.mkdir(parents=True, exist_ok=True)
         
         # User-Profile Datei
@@ -114,7 +117,7 @@ class ProfileManager:
             
             return True
         except Exception as e:
-            print(f"Fehler beim Speichern des Profils: {e}")
+            logger.error(f"Failed to save profile: {e}")
             return False
     
     def delete_profile(self, name: str) -> bool:
@@ -142,7 +145,7 @@ class ProfileManager:
                 return True
             return False
         except Exception as e:
-            print(f"Fehler beim Löschen des Profils: {e}")
+            logger.error(f"Failed to delete profile: {e}")
             return False
     
     def load_user_profiles(self) -> Dict[str, dict]:
@@ -159,7 +162,7 @@ class ProfileManager:
             with open(self.user_profiles_file, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except Exception as e:
-            print(f"Fehler beim Laden der User-Profile: {e}")
+            logger.error(f"Failed to load user profiles: {e}")
             return {}
     
     def get_profile_names(self) -> List[str]:
@@ -205,7 +208,7 @@ class ProfileManager:
                 return True
             return False
         except Exception as e:
-            print(f"Fehler beim Markieren als Favorit: {e}")
+            logger.error(f"Failed to mark profile as favorite: {e}")
             return False
     
     def unmark_as_favorite(self, name: str) -> bool:
@@ -230,7 +233,7 @@ class ProfileManager:
                 return True
             return False
         except Exception as e:
-            print(f"Fehler beim Entfernen der Favoriten-Markierung: {e}")
+            logger.error(f"Failed to unmark profile as favorite: {e}")
             return False
     
     def get_favorites(self) -> List[str]:
@@ -302,7 +305,7 @@ class ProfileManager:
             
             return True
         except Exception as e:
-            print(f"Fehler beim Exportieren des Profils: {e}")
+            logger.error(f"Failed to export profile: {e}")
             return False
     
     def import_profile(self, import_path: Path) -> tuple[bool, Optional[str]]:
@@ -336,6 +339,6 @@ class ProfileManager:
                 return True, name
             return False, None
         except Exception as e:
-            print(f"Fehler beim Importieren des Profils: {e}")
+            logger.error(f"Failed to import profile: {e}")
             return False, None
 

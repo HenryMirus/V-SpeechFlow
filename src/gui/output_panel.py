@@ -24,6 +24,9 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
 from .translations import tr
 from .collapsible_section import CollapsibleSection
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class OutputPanel(QWidget):

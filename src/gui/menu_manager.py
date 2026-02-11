@@ -16,8 +16,11 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QKeySequence, QAction
 from pathlib import Path
+import logging
 from .translations import tr, get_translation_manager
 from .theme_toggle_switch import ThemeToggleSwitch
+
+logger = logging.getLogger(__name__)
 
 
 class MenuManager:
@@ -222,7 +225,7 @@ class MenuManager:
         corner_layout.addWidget(self.theme_toggle_switch)
         menubar.setCornerWidget(corner_container, Qt.Corner.TopRightCorner)
 
-        self.mw.log_info("Menu-Bar erstellt")
+        logger.info("Menu bar created")
 
     # ===== Recent-Menü Helfer =====
 
@@ -279,7 +282,7 @@ class MenuManager:
         """Lädt eine zuletzt verwendete Datei."""
         if Path(file_path).exists():
             self.mw.input_panel.set_file_path(file_path)
-            self.mw.log_info(f"File loaded from history: {file_path}")
+            logger.info(f"File loaded from history: {file_path}")
         else:
             QMessageBox.warning(
                 self.mw,
@@ -293,7 +296,7 @@ class MenuManager:
         """Lädt ein zuletzt verwendetes Modell."""
         if Path(model_path).exists():
             self.mw.model_panel.set_model_path(model_path)
-            self.mw.log_info(f"Model loaded from history: {model_path}")
+            logger.info(f"Model loaded from history: {model_path}")
         else:
             QMessageBox.warning(
                 self.mw,
@@ -317,7 +320,7 @@ class MenuManager:
             self.mw.history_manager.clear_history()
             self.update_recent_files_menu()
             self.update_recent_models_menu()
-            self.mw.log_info("History cleared")
+            logger.info("History cleared")
             QMessageBox.information(self.mw, tr('main_done'), tr('main_history_cleared'))
 
     # ===== Theme =====
@@ -333,7 +336,7 @@ class MenuManager:
         # Update Theme-Switch
         self.update_theme_switch()
 
-        self.mw.log_info(f"Theme changed to: {new_theme}")
+        logger.info(f"Theme changed to: {new_theme}")
 
     def update_theme_switch(self):
         """Aktualisiert den Theme-Toggle-Switch basierend auf dem aktuellen Theme."""
@@ -352,7 +355,7 @@ class MenuManager:
         """Aktiviert den Batch-Tab im Input-Panel."""
         # Wechsle zum Batch-Tab (Index 2: Live=0, File=1, Batch=2)
         self.mw.input_panel.tabs.setCurrentIndex(2)
-        self.mw.log_info("Batch-Tab aktiviert")
+        logger.info("Batch tab activated")
         self.mw.statusBar().showMessage("📦 Batch-Modus aktiviert", 2000)
 
     # ===== Sprache =====

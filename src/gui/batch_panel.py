@@ -24,6 +24,9 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont, QDragEnterEvent, QDropEvent, QDragLeaveEvent
 from .translations import tr
 from .constants import SUPPORTED_AUDIO_FORMATS
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class BatchPanel(QWidget):
@@ -244,9 +247,11 @@ class BatchPanel(QWidget):
     
     def add_files_to_list(self, files: List[str]):
         """Fügt Dateien zur Liste hinzu."""
+        added_count = 0
         for file_path in files:
             if file_path not in self.file_list:
                 self.file_list.append(file_path)
+                added_count += 1
                 
                 path = Path(file_path)
                 size_mb = path.stat().st_size / 1024 / 1024
@@ -255,6 +260,8 @@ class BatchPanel(QWidget):
                 item.setData(Qt.ItemDataRole.UserRole, file_path)
                 self.file_list_widget.addItem(item)
         
+        if added_count > 0:
+            logger.info(f"Batch: {added_count} file(s) added, total: {len(self.file_list)}")
         self.update_stats()
     
     def remove_selected(self):
@@ -264,6 +271,7 @@ class BatchPanel(QWidget):
         if not selected_items:
             return
         
+        logger.info(f"Batch: removing {len(selected_items)} selected file(s)")
         for item in selected_items:
             file_path = item.data(Qt.ItemDataRole.UserRole)
             if file_path in self.file_list:
@@ -286,6 +294,7 @@ class BatchPanel(QWidget):
         )
         
         if reply == QMessageBox.StandardButton.Yes:
+            logger.info(f"Batch: clearing all {len(self.file_list)} files")
             self.file_list.clear()
             self.file_list_widget.clear()
             self.update_stats()

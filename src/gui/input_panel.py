@@ -30,6 +30,9 @@ from .macos_utils import get_hf_token_from_keychain, is_mac
 from .workers import RecordingWorker
 from .batch_panel import BatchPanel
 from .constants import SUPPORTED_AUDIO_FORMATS
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class InputPanel(QWidget):
@@ -214,15 +217,19 @@ class InputPanel(QWidget):
         
         # Validierung
         if not path.exists():
+            logger.warning(f"File not found: {file_path}")
             self.file_path_display.setText(f"❌ {tr('input_file_not_found')}: {file_path}")
             return
         
         if path.suffix.lower().lstrip('.') not in self.SUPPORTED_FORMATS:
+            logger.warning(f"Unsupported file format: {path.suffix} ({file_path})")
             self.file_path_display.setText(f"❌ {tr('input_format_not_supported')}: {path.suffix}")
             return
         
         self.selected_file = str(path)
-        self.file_path_display.setText(f"✓ {path.name} ({path.stat().st_size / 1024 / 1024:.1f} MB)")
+        size_mb = path.stat().st_size / 1024 / 1024
+        logger.info(f"File accepted: {path.name} ({size_mb:.1f} MB)")
+        self.file_path_display.setText(f"✓ {path.name} ({size_mb:.1f} MB)")
         self.file_selected.emit(self.selected_file)
     
     def clear_file_selection(self):
@@ -273,10 +280,10 @@ class InputPanel(QWidget):
             for i in range(self.mic_combo.count()):
                 if self.mic_combo.itemData(i) == self.saved_device_id:
                     selected_index = i
-                    print(f"✓ Gespeichertes Mikrofon gefunden: {self.mic_combo.itemText(i)}")
+                    logger.info(f"Saved microphone found: {self.mic_combo.itemText(i)}")
                     self.mic_combo.setCurrentIndex(selected_index)
                     return
-            print(f"⚠ Gespeichertes Mikrofon (ID: {self.saved_device_id}) nicht mehr verfügbar")
+            logger.warning(f"Saved microphone (ID: {self.saved_device_id}) no longer available")
         
         # Priorität 2: Standard-Gerät vom System
         default_device_id = get_default_device()
@@ -284,13 +291,13 @@ class InputPanel(QWidget):
             for i in range(self.mic_combo.count()):
                 if self.mic_combo.itemData(i) == default_device_id:
                     selected_index = i
-                    print(f"✓ Standard-Mikrofon vom System gefunden: {self.mic_combo.itemText(i)}")
+                    logger.info(f"System default microphone found: {self.mic_combo.itemText(i)}")
                     break
         
         # Priorität 3 (Fallback): Erstes Gerät
         self.mic_combo.setCurrentIndex(selected_index)
         if selected_index == 0 and default_device_id is None:
-            print(f"ℹ Verwende erstes verfügbares Mikrofon: {self.mic_combo.itemText(0)}")
+            logger.debug(f"Using first available microphone: {self.mic_combo.itemText(0)}")
     
     def set_history_manager(self, history_manager):
         """Setzt den History-Manager für Speicherung der Mikrofon-Auswahl."""
@@ -299,7 +306,7 @@ class InputPanel(QWidget):
         # Gespeichertes Mikrofon laden
         self.saved_device_id = history_manager.get_user_preference('last_microphone_id')
         if self.saved_device_id is not None:
-            print(f"ℹ Gespeicherte Mikrofon-ID geladen: {self.saved_device_id}")
+            logger.debug(f"Loaded saved microphone ID: {self.saved_device_id}")
     
     def save_current_microphone(self):
         """Speichert das aktuell ausgewählte Mikrofon."""
@@ -311,7 +318,7 @@ class InputPanel(QWidget):
             self.history_manager.save_user_preference('last_microphone_id', device_id)
             self.saved_device_id = device_id
             device_name = self.mic_combo.currentText()
-            print(f"✓ Mikrofon gespeichert: {device_name} (ID: {device_id})")
+            logger.info(f"Microphone saved: {device_name} (ID: {device_id})")
     
     def on_microphone_changed(self, index: int):
         """Wird aufgerufen wenn das Mikrofon geändert wird."""
@@ -328,6 +335,7 @@ class InputPanel(QWidget):
         
         # Ausgewähltes Mikrofon speichern
         self.save_current_microphone()
+        logger.info(f"Starting recording with device index: {device_idx}, device: {self.mic_combo.currentText()}")
         if device_idx is None or device_idx < 0:
             QMessageBox.warning(
                 self,
@@ -420,6 +428,7 @@ class InputPanel(QWidget):
     
     def dragEnterEvent(self, event: QDragEnterEvent):
         """Akzeptiert Drag-and-Drop für Audio-Dateien."""
+        logger.debug(f"Drag enter event received, has URLs: {event.mimeData().hasUrls()}")
         # Prüfen welcher Tab aktiv ist
         current_tab = self.tabs.currentIndex()
         
@@ -465,6 +474,7 @@ class InputPanel(QWidget):
         
         # Batch-Tab: an BatchPanel delegieren
         if current_tab == 2:
+            logger.debug("Drop delegated to batch panel")
             self.batch_panel.dropEvent(event)
             return
         
@@ -488,6 +498,7 @@ class InputPanel(QWidget):
     
     def on_recording_error(self, error_msg: str):
         """Wird aufgerufen wenn ein Fehler auftritt."""
+        logger.error(f"Recording error: {error_msg}")
         QMessageBox.critical(
             self,
             tr("input_recording_error_title"),
@@ -512,6 +523,7 @@ class InputPanel(QWidget):
         # Datei-Info anzeigen
         path = Path(wav_path)
         size_mb = path.stat().st_size / 1024 / 1024
+        logger.info(f"Recording finished: {path.name} ({size_mb:.1f} MB)")
         
         self.recording_status.setText(tr("status_recording_saved").format(name=path.name, size=f"{size_mb:.1f}"))
         self.recording_status.setStyleSheet("color: green; font-weight: bold;")

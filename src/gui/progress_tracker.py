@@ -7,10 +7,13 @@ konkreten Schritten, nicht auf Zeitschätzungen.
 
 import re
 import time
+import logging
 import subprocess
 from pathlib import Path
 from typing import Optional, Tuple
 from .utils import parse_timestamp as _parse_timestamp_shared
+
+logger = logging.getLogger(__name__)
 
 
 class ProgressTracker:
@@ -79,11 +82,13 @@ class ProgressTracker:
         self.last_timestamp = 0.0
         self.start_time = None
         self.elapsed_time = 0.0
+        logger.debug("ProgressTracker reset")
     
     def start(self):
         """Startet den Timer für elapsed time."""
         self.start_time = time.time()
         self.elapsed_time = 0.0
+        logger.debug(f"ProgressTracker started (diarization={self.has_diarization}, phases={self.active_phases})")
     
     def update_elapsed_time(self):
         """Aktualisiert die verstrichene Zeit."""

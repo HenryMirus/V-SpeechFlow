@@ -22,6 +22,8 @@ from .translations import tr
 from .utils import classify_process_error, classify_process_warning
 import logging
 
+logger = logging.getLogger(__name__)
+
 
 class BatchWorker(QThread):
     """Worker-Thread für Batch-Processing."""
@@ -49,6 +51,7 @@ class BatchWorker(QThread):
     def run(self):
         """Führt Batch-Processing aus."""
         total = len(self.files)
+        logger.info(f"Batch worker started: {total} files")
         successful = 0
         failed = 0
         warned = 0
@@ -238,9 +241,11 @@ class BatchWorker(QThread):
                 self.output_received.emit(f"     {tr('batch_reason_label')}: {first_line}\n")
         
         self.batch_finished.emit(successful, failed, warned, failed_files, warned_files)
+        logger.info(f"Batch worker finished: {successful} successful, {failed} failed, {warned} warned")
     
     def stop(self):
         """Stoppt den Batch-Prozess."""
+        logger.info("Batch worker stop requested")
         self.should_stop = True
         if self.current_process:
             try:
@@ -314,6 +319,7 @@ class BatchWindow(QDialog):
         files = self.batch_panel.get_file_list()
         
         if not files:
+            logger.warning("Batch start attempted with no files")
             QMessageBox.warning(self, tr("batch_no_files_window_title"), tr("batch_no_files_window_msg"))
             return
         
@@ -355,6 +361,7 @@ class BatchWindow(QDialog):
     
     def stop_batch(self):
         """Stoppt Batch-Processing."""
+        logger.info("Batch stop requested by user")
         if self.batch_worker:
             reply = QMessageBox.question(
                 self,

@@ -25,6 +25,9 @@ from .translations import tr
 from .collapsible_section import CollapsibleSection
 from .macos_utils import get_hf_token_from_keychain, save_hf_token_to_keychain, is_mac
 from .utils import validate_token_format
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class DiarizationPanel(QWidget):
@@ -45,6 +48,7 @@ class DiarizationPanel(QWidget):
         if is_mac():
             token = get_hf_token_from_keychain()
             if token:
+                logger.info("HF token auto-loaded from macOS Keychain")
                 self.hf_token_input.setText(token)
                 # Stille Ladung - keine Meldung beim Auto-Load
     

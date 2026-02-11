@@ -33,6 +33,9 @@ from .model_utils import (
     is_model_downloaded,
 )
 from .workers import ModelDownloadWorker
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class NonScrollableComboBox(QComboBox):
@@ -254,6 +257,7 @@ class ModelPanel(QWidget):
         filename = self.model_combo.currentData()
         
         if filename:
+            logger.info(f"Model quick-select changed: {filename}")
             info = get_model_info(filename)
             if info:
                 model_path = get_model_path_in_models_dir(filename)
@@ -262,6 +266,7 @@ class ModelPanel(QWidget):
     
     def browse_model_file(self):
         """Öffnet File-Dialog zur Modell-Auswahl."""
+        logger.debug("Model file browse dialog opened")
         file_path, _ = QFileDialog.getOpenFileName(
             self,
             tr("wizard_model_browse_title"),
@@ -291,9 +296,11 @@ class ModelPanel(QWidget):
             )
             self.validation_status.setStyleSheet("font-weight: bold; color: green;")
             self.selected_model = model_path
+            logger.info(f"Model validated: {model_path} ({result['size_mb']} MB)")
             self.model_selected.emit(model_path)
         else:
             error = result.get('error', 'Unbekannter Fehler')
+            logger.warning(f"Model validation failed: {model_path} - {error}")
             self.validation_status.setText(f"✗ {error}")
             self.validation_status.setStyleSheet("font-weight: bold; color: red;")
             self.selected_model = None
@@ -384,6 +391,7 @@ class ModelPanel(QWidget):
             return
 
         self._current_download_filename = filename
+        logger.info(f"Starting model download: {filename} from {info['url']} ({info['size_mb']} MB)")
 
         # Per-Model Button deaktivieren
         if filename in self._model_download_btns:
@@ -417,6 +425,7 @@ class ModelPanel(QWidget):
 
     def cancel_model_download(self):
         """Bricht den laufenden Download ab."""
+        logger.info("Model download cancelled by user")
         if self._download_worker:
             self._download_worker.stop()
             self._download_worker.wait(3000)
@@ -441,6 +450,7 @@ class ModelPanel(QWidget):
     def _on_download_finished(self, path: str):
         """Wird aufgerufen wenn der Download erfolgreich abgeschlossen ist."""
         filename = getattr(self, '_current_download_filename', None)
+        logger.info(f"Model download completed: {filename} -> {path}")
         self._download_worker = None
         self._reset_download_ui()
         self.download_status.setVisible(True)
@@ -463,6 +473,7 @@ class ModelPanel(QWidget):
 
     def _on_download_error(self, error: str):
         """Wird aufgerufen wenn der Download fehlschlägt."""
+        logger.error(f"Model download failed: {error}")
         self._download_worker = None
         self._reset_download_ui()
         self.download_status.setVisible(True)

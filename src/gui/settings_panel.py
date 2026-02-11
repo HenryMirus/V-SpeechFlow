@@ -20,9 +20,12 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
+import logging
 from .translations import tr
 from .collapsible_section import CollapsibleSection
 from .system_utils import get_system_info, get_recommended_threads
+
+logger = logging.getLogger(__name__)
 
 
 class NoScrollSlider(QSlider):
@@ -162,6 +165,48 @@ class SettingsPanel(QWidget):
         output_group.setLayout(output_layout)
         layout.addWidget(output_group)
         
+        # ===== Log Level Configuration =====
+        log_group = QGroupBox("📋 Log Level")
+        log_layout = QVBoxLayout()
+        
+        log_combo_layout = QHBoxLayout()
+        log_combo_layout.addWidget(QLabel("Log Level:"))
+        
+        self.log_level_combo = QComboBox()
+        self.log_level_combo.addItem("DEBUG", logging.DEBUG)
+        self.log_level_combo.addItem("INFO", logging.INFO)
+        self.log_level_combo.addItem("WARNING", logging.WARNING)
+        self.log_level_combo.addItem("ERROR", logging.ERROR)
+        self.log_level_combo.setCurrentIndex(1)  # INFO default
+        self.log_level_combo.setToolTip(
+            "Controls verbosity of log output.\n"
+            "DEBUG: All details (for troubleshooting)\n"
+            "INFO: Normal operation messages\n"
+            "WARNING: Only warnings and errors\n"
+            "ERROR: Only errors"
+        )
+        self.log_level_combo.currentIndexChanged.connect(self._on_log_level_changed)
+        log_combo_layout.addWidget(self.log_level_combo)
+        log_combo_layout.addStretch()
+        
+        # Initialize from saved preference
+        try:
+            from .history import HistoryManager
+            saved_level = HistoryManager.get_instance().get_user_preference('log_level', 'INFO')
+            self.set_log_level_combo(saved_level)
+        except Exception:
+            pass
+        
+        log_layout.addLayout(log_combo_layout)
+        
+        log_hint = QLabel("💡 Log file always captures all levels (DEBUG+). This setting controls terminal output.")
+        log_hint.setStyleSheet("color: gray; font-size: 10px;")
+        log_hint.setWordWrap(True)
+        log_layout.addWidget(log_hint)
+        
+        log_group.setLayout(log_layout)
+        layout.addWidget(log_group)
+        
         layout.addStretch()
         
         # Collapsible Section zum Main-Layout hinzufügen
@@ -172,6 +217,24 @@ class SettingsPanel(QWidget):
         """Emittiert Signal mit aktuellen Settings."""
         settings = self.get_settings()
         self.settings_changed.emit(settings)
+    
+    def _on_log_level_changed(self, index: int):
+        """Handle log level combo change."""
+        from .log_config import set_log_level
+        from .history import HistoryManager
+        
+        level = self.log_level_combo.currentData()
+        if level is not None:
+            set_log_level(level)
+            level_name = logging.getLevelName(level)
+            logger.info(f"Log level changed via settings: {level_name}")
+            
+            # Persist preference
+            try:
+                history = HistoryManager.get_instance()
+                history.save_user_preference('log_level', level_name)
+            except Exception:
+                pass
     
     def get_settings(self) -> dict:
         """Gibt alle aktuellen Einstellungen zurück."""
@@ -210,6 +273,20 @@ class SettingsPanel(QWidget):
         threads = max(1, min(cpu_count, threads))
         # Setze beide Widgets (sie sind bereits miteinander verbunden)
         self.thread_spinbox.setValue(threads)
+
+    def set_log_level_combo(self, level_name: str):
+        """
+        Sets the log level combo to the given level name.
+        
+        Args:
+            level_name: Level name string (DEBUG, INFO, WARNING, ERROR)
+        """
+        level_value = getattr(logging, level_name, logging.INFO)
+        index = self.log_level_combo.findData(level_value)
+        if index >= 0:
+            self.log_level_combo.blockSignals(True)
+            self.log_level_combo.setCurrentIndex(index)
+            self.log_level_combo.blockSignals(False)
 
     def refresh_translations(self):
         """Aktualisiert alle übersetzbaren Texte nach einem Sprachwechsel."""
