@@ -303,11 +303,19 @@ class TranscriptionController:
 
             input_file = self.mw.input_panel.get_selected_file()
             output_path = self.mw.output_panel.get_output_path(input_file)
+
+            # Resolve actual file path if output_path is a directory
+            resolved_path = Path(output_path)
+            if resolved_path.is_dir():
+                input_name = Path(input_file).stem if input_file else "recording"
+                resolved_path = resolved_path / f"{input_name}_transcript.txt"
+            output_file = str(resolved_path)
+
             self.mw.append_output(
-                "\n" + tr("transcription_output_saved").format(path=output_path)
+                "\n" + tr("transcription_output_saved").format(path=output_file)
             )
 
-            self.mw.history_manager.add_output_path(output_path)
+            self.mw.history_manager.add_output_path(output_file)
             self.mw.menu_manager.update_recent_files_menu()
             self.mw.menu_manager.update_recent_models_menu()
 
@@ -315,13 +323,13 @@ class TranscriptionController:
 
             output_settings = self.mw.output_panel.get_settings()
             if output_settings.get('auto_open'):
-                self.mw.open_output_file(output_path)
+                self.mw.open_output_file(output_file)
 
             QMessageBox.information(
                 self.mw,
                 tr('main_done'),
                 f"{tr('main_transcription_success')}\n\n"
-                f"{tr('main_file_saved_at')}\n{output_path}"
+                f"{tr('main_file_saved_at')}\n{output_file}"
             )
         else:
             self.mw.append_output("\n" + "=" * 50)
