@@ -61,3 +61,10 @@ tmp*
 # User data
 history/
 logs/
+
+# macOS App build artifacts (py2app)
+build_app/
+dist/
+*.app/
+*.dmg
+*.pkg

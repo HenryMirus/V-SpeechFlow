@@ -28,3 +28,6 @@ watchdog>=3.0.0  # Hot reloading for development
 
 # GUI dependencies
 PyQt6>=6.5.0     # GUI framework
+
+# App bundling for macOS
+py2app>=0.28.0   # Create standalone .app bundles
