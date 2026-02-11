@@ -32,6 +32,8 @@ class CLIWorker(QThread):
         self.arguments = arguments
         self.process = None
         self.last_timestamp = 0.0
+        self.stderr_lines = []  # Sammelt alle stderr-Zeilen für Fehleranalyse
+        self.stdout_lines = []  # Sammelt alle stdout-Zeilen für Fehleranalyse
     
     def parse_timestamp_from_output(self, line: str) -> float:
         """Parst Timestamps aus Whisper Output."""
@@ -71,6 +73,7 @@ class CLIWorker(QThread):
                 for line in iter(self.process.stdout.readline, ''):
                     if line:
                         line_stripped = line.rstrip()
+                        self.stdout_lines.append(line_stripped)
                         self.output_received.emit(line_stripped)
                         
                         # Versuche Timestamp zu parsen
@@ -86,7 +89,9 @@ class CLIWorker(QThread):
                 """Liest stderr in separatem Thread."""
                 for line in iter(self.process.stderr.readline, ''):
                     if line:
-                        self.error_received.emit(line.rstrip())
+                        stripped = line.rstrip()
+                        self.stderr_lines.append(stripped)
+                        self.error_received.emit(stripped)
                 self.process.stderr.close()
             
             # Threads für stdout und stderr starten

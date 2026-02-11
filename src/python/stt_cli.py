@@ -658,6 +658,15 @@ Beispiele:
         if temp_transcript:
             temp_transcript.unlink(missing_ok=True)
 
+    elif args.diarize and not speaker_segments:
+        # Diarization war aktiv, aber es wurden keine Sprecher gefunden.
+        # Keine Output-Datei schreiben — wird als Warning im Batch behandelt.
+        print("Warning: No speakers detected by diarization. No output file written.", file=sys.stderr)
+        
+        # Temp-Datei aufräumen
+        if temp_transcript:
+            temp_transcript.unlink(missing_ok=True)
+
     # Temporäre WAV aufräumen
     if cleanup_temp and temp_wav and temp_wav.exists():
         temp_wav.unlink(missing_ok=True)

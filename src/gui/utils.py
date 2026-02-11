@@ -160,3 +160,210 @@ def validate_token_format(token: str) -> bool:
         True wenn Format gültig (beginnt mit hf_ und hat min. 20 Zeichen)
     """
     return token.startswith("hf_") and len(token) >= 20
+
+
+# ===== Fehler-Klassifikation für STT-Output =====
+
+# Bekannte Fehlermuster aus stt_native, wav_reader, whisper.cpp und stt_cli.py
+# Geordnet nach Spezifität (spezifischere Muster zuerst)
+_ERROR_PATTERNS = [
+    # WAV-Datei-Fehler (wav_reader.cpp)
+    ("cannot open wav file", "error_wav_cannot_open"),
+    ("not a valid wav file", "error_wav_invalid"),
+    ("only pcm format supported", "error_wav_pcm_only"),
+    ("only 16-bit samples supported", "error_wav_16bit_only"),
+    ("failed to read audio data", "error_wav_read_failed"),
+
+    # Model-Fehler (stt_engine.cpp, whisper.cpp)
+    ("invalid model data", "error_model_invalid"),
+    ("failed to load model", "error_model_load_failed"),
+    ("engine not initialized", "error_engine_not_init"),
+
+    # Transkriptions-Fehler (whisper.cpp intern)
+    ("failed to compute vad", "error_vad_failed"),
+    ("failed to compute log mel spectrogram", "error_mel_failed"),
+    ("failed to auto-detect language", "error_lang_detect_failed"),
+    ("too many decoders requested", "error_too_many_decoders"),
+    ("audio_ctx is larger than the maximum allowed", "error_audio_ctx_too_large"),
+    ("failed to encode", "error_encode_failed"),
+    ("failed to decode", "error_decode_failed"),
+    ("transcription failed with code", "error_transcription_code"),
+
+    # Konvertierung (stt_cli.py)
+    ("ffmpeg conversion failed", "error_ffmpeg_failed"),
+
+    # Binary/Model nicht gefunden (stt_cli.py)
+    ("stt binary not found", "error_binary_not_found"),
+    ("stt_native binary not found", "error_binary_not_found"),
+    ("model file not found", "error_model_not_found"),
+    ("audio file not found", "error_audio_not_found"),
+
+    # Diarization-Fehler (stt_cli.py)
+    ("diarization module not available", "error_diarization_unavailable"),
+    ("hf token required", "error_hf_token_required"),
+
+    # Speicher-Fehler (whisper.cpp)
+    ("failed to allocate memory", "error_out_of_memory"),
+]
+
+# Muster die in stdout vorkommen können (nicht stderr)
+_STDOUT_WARNING_PATTERNS = [
+    ("found 0 speaker(s)", "warning_no_speakers"),
+]
+
+# Warnmuster — Dinge die beachtenswert sind, aber kein harter Fehler
+# (z.B. Datei wurde trotzdem erstellt, aber mit Einschränkungen)
+_WARNING_PATTERNS = [
+    ("no speakers detected", "warning_no_speakers"),
+    ("could not parse transcript segments", "warning_no_segments"),
+    ("sample rate is", "warning_sample_rate"),
+    ("audio has", "warning_channels"),
+]
+
+
+def classify_stderr_error(stderr_lines: list) -> Optional[str]:
+    """
+    Analysiert stderr-Zeilen und gibt die spezifischste Fehlermeldung zurück.
+
+    Durchsucht die stderr-Ausgabe nach bekannten Fehlermustern aus stt_native,
+    wav_reader, whisper.cpp und stt_cli.py.
+
+    Args:
+        stderr_lines: Liste von stderr-Zeilen
+
+    Returns:
+        Die originale stderr-Zeile des ersten erkannten Fehlers, oder None
+        wenn kein bekanntes Fehlermuster gefunden wurde.
+    """
+    if not stderr_lines:
+        return None
+
+    for line in stderr_lines:
+        line_lower = line.strip().lower()
+        for pattern, _key in _ERROR_PATTERNS:
+            if pattern in line_lower:
+                return line.strip()
+
+    return None
+
+
+def classify_process_error(stderr_lines: list, stdout_lines: list = None) -> Optional[str]:
+    """
+    Analysiert stderr UND stdout nach Fehlermustern.
+
+    Prüft zuerst stderr (höhere Priorität), dann stdout auf bekannte
+    Warnmuster (z.B. 'Found 0 speaker(s)').
+
+    Args:
+        stderr_lines: Liste von stderr-Zeilen
+        stdout_lines: Liste von stdout-Zeilen (optional)
+
+    Returns:
+        Die originale Zeile des ersten erkannten Fehlers/Warnung, oder None.
+    """
+    # Zuerst stderr prüfen (höhere Priorität)
+    result = classify_stderr_error(stderr_lines)
+    if result:
+        return result
+
+    # Dann stdout auf bekannte Warnmuster prüfen
+    if stdout_lines:
+        for line in stdout_lines:
+            line_lower = line.strip().lower()
+            for pattern, _key in _STDOUT_WARNING_PATTERNS:
+                if pattern in line_lower:
+                    return line.strip()
+
+    return None
+
+
+def classify_process_warning(stderr_lines: list, stdout_lines: list = None) -> Optional[str]:
+    """
+    Analysiert stderr UND stdout nach Warnmustern.
+
+    Warnings sind Hinweise auf Probleme, die aber nicht zum Abbruch führen
+    (z.B. keine Sprecher erkannt, aber Transkript trotzdem erstellt).
+
+    Args:
+        stderr_lines: Liste von stderr-Zeilen
+        stdout_lines: Liste von stdout-Zeilen (optional)
+
+    Returns:
+        Die originale Zeile der ersten erkannten Warnung, oder None.
+    """
+    all_lines = list(stderr_lines or [])
+    if stdout_lines:
+        all_lines.extend(stdout_lines)
+
+    for line in all_lines:
+        line_lower = line.strip().lower()
+        for pattern, _key in _WARNING_PATTERNS:
+            if pattern in line_lower:
+                return line.strip()
+
+    # Auch stdout-spezifische Warnmuster prüfen
+    if stdout_lines:
+        for line in stdout_lines:
+            line_lower = line.strip().lower()
+            for pattern, _key in _STDOUT_WARNING_PATTERNS:
+                if pattern in line_lower:
+                    return line.strip()
+
+    return None
+
+
+def is_whisper_debug_line(line: str) -> bool:
+    """
+    Prüft ob eine stderr-Zeile eine Debug-/Info-Meldung von whisper/ggml ist
+    (und kein echter Fehler).
+
+    Zeilen die mit whisper_/ggml_/etc. beginnen werden normalerweise als Debug
+    betrachtet, AUSSER sie enthalten ein Error-Keyword wie 'failed', 'error', etc.
+
+    Args:
+        line: Eine einzelne stderr-Zeile
+
+    Returns:
+        True wenn die Zeile als Debug/Info klassifiziert wird (kein Fehler)
+    """
+    text_lower = line.strip().lower()
+
+    debug_prefixes = (
+        'whisper_', 'ggml_', 'metal_', 'backend_', 'compute_',
+        'encoder_', 'decoder_', 'kv_cache_', 'model_'
+    )
+
+    if not any(text_lower.startswith(prefix) for prefix in debug_prefixes):
+        return False
+
+    # Zeile beginnt mit Debug-Prefix — prüfe ob sie trotzdem einen Fehler enthält
+    error_indicators = (
+        'failed', 'error', 'invalid', 'cannot', 'unable',
+        'not found', 'not a valid', 'out of memory',
+    )
+
+    if any(indicator in text_lower for indicator in error_indicators):
+        return False  # Ist ein echter Fehler, kein Debug
+
+    return True
+
+
+def is_stderr_error_line(line: str) -> bool:
+    """
+    Prüft ob eine stderr-Zeile ein Fehler ist (nicht Debug/Info).
+
+    Args:
+        line: Eine einzelne stderr-Zeile
+
+    Returns:
+        True wenn die Zeile als Fehler klassifiziert wird
+    """
+    text_lower = line.strip().lower()
+
+    error_keywords = (
+        'error:', 'failed:', 'exception:', 'traceback',
+        'cannot', 'unable to', 'failed to', 'not found',
+        'invalid', 'not a valid',
+    )
+
+    return any(keyword in text_lower for keyword in error_keywords)

@@ -13,6 +13,7 @@ from .batch_window import BatchWorker
 from .progress_tracker import ProgressTracker
 from .translations import tr
 from .constants import CLI_STOP_WAIT_MS, BATCH_STOP_WAIT_MS, PROGRESS_TIMER_MS
+from .utils import classify_process_error, is_whisper_debug_line, is_stderr_error_line
 
 
 class TranscriptionController:
@@ -257,23 +258,11 @@ class TranscriptionController:
 
     def on_cli_error(self, text: str):
         """Wird aufgerufen wenn CLI stderr Output empfängt."""
-        text_lower = text.lower()
-
         if self.mw.progress_tracker.parse_output_line(text):
             self._update_progress_ui()
 
-        # Debug-Präfixe von Whisper/ggml (keine echten Fehler)
-        debug_prefixes = (
-            'whisper_', 'ggml_', 'metal_', 'backend_', 'compute_',
-            'encoder_', 'decoder_', 'kv_cache_', 'model_'
-        )
-
-        error_keywords = (
-            'error:', 'failed:', 'exception:', 'traceback', 'cannot', 'unable to'
-        )
-
-        is_debug = any(text_lower.startswith(prefix) for prefix in debug_prefixes)
-        is_error = any(keyword in text_lower for keyword in error_keywords)
+        is_debug = is_whisper_debug_line(text)
+        is_error = is_stderr_error_line(text)
 
         if is_error and not is_debug:
             self.mw.append_output(f"<span style='color: red;'>[ERROR] {text}</span>")
@@ -296,11 +285,14 @@ class TranscriptionController:
         self.mw.progress_tracker.reset()
         self.mw.reset_diarization_warning()
 
-        if return_code == 0:
-            self.mw.append_output("\n" + "=" * 50)
-            self.mw.append_output(tr("transcription_success_msg"))
-            self.mw.append_output("=" * 50)
+        # stderr/stdout-Zeilen vom Worker holen für Fehleranalyse
+        stderr_lines = []
+        stdout_lines = []
+        if self.mw.cli_worker:
+            stderr_lines = getattr(self.mw.cli_worker, 'stderr_lines', [])
+            stdout_lines = getattr(self.mw.cli_worker, 'stdout_lines', [])
 
+        if return_code == 0:
             input_file = self.mw.input_panel.get_selected_file()
             output_path = self.mw.output_panel.get_output_path(input_file)
 
@@ -311,42 +303,85 @@ class TranscriptionController:
                 resolved_path = resolved_path / f"{input_name}_transcript.txt"
             output_file = str(resolved_path)
 
-            self.mw.append_output(
-                "\n" + tr("transcription_output_saved").format(path=output_file)
-            )
+            # Prüfe ob die Output-Datei tatsächlich erstellt wurde und Inhalt hat
+            output_exists = resolved_path.exists()
+            output_has_content = output_exists and resolved_path.stat().st_size > 0
 
-            self.mw.history_manager.add_output_path(output_file)
-            self.mw.menu_manager.update_recent_files_menu()
-            self.mw.menu_manager.update_recent_models_menu()
+            if output_has_content:
+                # Erfolg
+                self.mw.append_output("\n" + "=" * 50)
+                self.mw.append_output(tr("transcription_success_msg"))
+                self.mw.append_output("=" * 50)
 
-            self.mw.statusBar().showMessage(tr("transcription_success_msg"))
+                self.mw.append_output(
+                    "\n" + tr("transcription_output_saved").format(path=output_file)
+                )
 
-            output_settings = self.mw.output_panel.get_settings()
-            if output_settings.get('auto_open'):
-                self.mw.open_output_file(output_file)
+                self.mw.history_manager.add_output_path(output_file)
+                self.mw.menu_manager.update_recent_files_menu()
+                self.mw.menu_manager.update_recent_models_menu()
 
-            QMessageBox.information(
-                self.mw,
-                tr('main_done'),
-                f"{tr('main_transcription_success')}\n\n"
-                f"{tr('main_file_saved_at')}\n{output_file}"
-            )
+                self.mw.statusBar().showMessage(tr("transcription_success_msg"))
+
+                output_settings = self.mw.output_panel.get_settings()
+                if output_settings.get('auto_open'):
+                    self.mw.open_output_file(output_file)
+
+                QMessageBox.information(
+                    self.mw,
+                    tr('main_done'),
+                    f"{tr('main_transcription_success')}\n\n"
+                    f"{tr('main_file_saved_at')}\n{output_file}"
+                )
+            else:
+                # Exit 0 aber keine/leere Output-Datei
+                specific_error = classify_process_error(stderr_lines, stdout_lines)
+
+                if not output_exists:
+                    fallback_msg = tr('error_output_not_created').format(path=output_file)
+                else:
+                    # Datei existiert, ist aber leer -> kein Sprecher erkannt
+                    fallback_msg = tr('error_empty_transcript')
+
+                error_msg = specific_error if specific_error else fallback_msg
+
+                self.mw.append_output("\n" + "=" * 50)
+                self.mw.append_output(f"❌ {error_msg}")
+                self.mw.append_output("=" * 50)
+
+                self.mw.statusBar().showMessage(f"❌ {tr('main_transcription_failed_short')}")
+
+                QMessageBox.warning(
+                    self.mw,
+                    tr('main_error'),
+                    f"{error_msg}"
+                )
         else:
+            # Nicht-Null Exit-Code: Spezifischen Fehler suchen
+            specific_error = classify_process_error(stderr_lines, stdout_lines)
+
             self.mw.append_output("\n" + "=" * 50)
-            self.mw.append_output(
-                f"❌ Transkription fehlgeschlagen (Exit Code: {return_code})"
-            )
+            if specific_error:
+                self.mw.append_output(f"❌ {specific_error}")
+            else:
+                self.mw.append_output(
+                    f"❌ {tr('main_transcription_failed', code=return_code)}"
+                )
             self.mw.append_output("=" * 50)
 
             self.mw.statusBar().showMessage(
-                f"❌ Transkription fehlgeschlagen (Code: {return_code})"
+                f"❌ {tr('main_transcription_failed_short')} (Code: {return_code})"
+            )
+
+            error_detail = specific_error if specific_error else (
+                f"{tr('main_transcription_failed', code=return_code)}\n\n"
+                f"{tr('main_check_output')}"
             )
 
             QMessageBox.critical(
                 self.mw,
                 tr('main_error'),
-                f"{tr('main_transcription_failed', code=return_code)}\n\n"
-                f"{tr('main_check_output')}"
+                error_detail
             )
 
         # Worker cleanup
@@ -487,32 +522,53 @@ class TranscriptionController:
         self.mw.log_info(f"Batch-Datei fertig: {filepath} - {message}")
         self.mw.reset_diarization_warning()
 
-    def on_batch_finished(self, successful: int, failed: int, failed_files: list = None):
+    def on_batch_finished(self, successful: int, failed: int, warned: int = 0,
+                          failed_files: list = None, warned_files: list = None):
         """Wird aufgerufen wenn Batch fertig ist."""
         if failed_files is None:
             failed_files = []
+        if warned_files is None:
+            warned_files = []
         
         self.mw.log_info(
-            f"Batch abgeschlossen: {successful} erfolgreich, {failed} fehlgeschlagen"
+            f"Batch abgeschlossen: {successful} erfolgreich, {failed} fehlgeschlagen, {warned} mit Warnungen"
         )
 
         self.mw.append_output(f"\n{'=' * 60}\n")
         self.mw.append_output("=== Batch-Processing abgeschlossen ===\n")
-        self.mw.append_output(f"✅ Erfolgreich: {successful}\n")
-        self.mw.append_output(f"❌ Fehlgeschlagen: {failed}\n")
+        self.mw.append_output(f"✅ {tr('batch_done_success')}: {successful}\n")
+        if warned > 0:
+            self.mw.append_output(f"⚠️ {tr('batch_done_warned')}: {warned}\n")
+        self.mw.append_output(f"❌ {tr('batch_done_failed')}: {failed}\n")
 
-        # Detaillierte Fehlermeldung zusammenstellen
-        msg = f"Batch-Processing abgeschlossen!\n\n" \
-              f"✅ Erfolgreich: {successful}\n" \
-              f"❌ Fehlgeschlagen: {failed}"
+        # Detaillierte Meldung zusammenstellen
+        msg = f"{tr('batch_complete_summary')}\n\n" \
+              f"✅ {tr('batch_done_success')}: {successful}\n"
+        
+        if warned > 0:
+            msg += f"⚠️ {tr('batch_done_warned')}: {warned}\n"
+        
+        msg += f"❌ {tr('batch_done_failed')}: {failed}"
+        
+        if warned_files:
+            msg += f"\n\n--- {tr('batch_warned_files_header')} ---"
+            for fname, reason in warned_files:
+                first_line = reason.strip().split('\n')[0]
+                msg += f"\n⚠️ {fname}: {first_line}"
         
         if failed_files:
-            msg += "\n\n--- Fehlgeschlagene Dateien ---"
+            msg += f"\n\n--- {tr('batch_failed_files_header')} ---"
             for fname, reason in failed_files:
                 first_line = reason.strip().split('\n')[0]
-                msg += f"\n• {fname}: {first_line}"
+                msg += f"\n❌ {fname}: {first_line}"
         
         if failed > 0:
+            QMessageBox.warning(
+                self.mw,
+                tr("status_batch_done"),
+                msg
+            )
+        elif warned > 0:
             QMessageBox.warning(
                 self.mw,
                 tr("status_batch_done"),

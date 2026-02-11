@@ -19,6 +19,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from .batch_panel import BatchPanel
 from .translations import tr
+from .utils import classify_process_error, classify_process_warning
 import logging
 
 
@@ -27,7 +28,7 @@ class BatchWorker(QThread):
     
     progress = pyqtSignal(int, int, str)  # current, total, filename
     file_finished = pyqtSignal(str, bool, str)  # filepath, success, message
-    batch_finished = pyqtSignal(int, int, list)  # successful, failed, error_details
+    batch_finished = pyqtSignal(int, int, int, list, list)  # successful, failed, warned, failed_files, warned_files
     output_received = pyqtSignal(str)
     
     def __init__(self, files: list, cli_args_base: list, batch_options: dict, output_dir: str = None):
@@ -50,12 +51,14 @@ class BatchWorker(QThread):
         total = len(self.files)
         successful = 0
         failed = 0
+        warned = 0
         failed_files = []  # Liste von (dateiname, fehlergrund)
+        warned_files = []  # Liste von (dateiname, warngrund)
         
         cli_script = self._resolve_cli_script()
         if not Path(cli_script).exists():
             self.output_received.emit(f"❌ CLI script not found: {cli_script}\n")
-            self.batch_finished.emit(0, total)
+            self.batch_finished.emit(0, total, 0, [], [])
             return
         
         for i, file_path in enumerate(self.files, 1):
@@ -124,11 +127,14 @@ class BatchWorker(QThread):
                 # Output in Echtzeit lesen — proc als lokale Variable
                 # damit Closures nicht auf self.current_process referenzieren
                 stderr_lines = []
+                stdout_lines = []
                 
-                def read_stdout(p=proc):
+                def read_stdout(p=proc, out_lines=stdout_lines):
                     for line in iter(p.stdout.readline, ''):
                         if line:
-                            self.output_received.emit(line.rstrip())
+                            stripped = line.rstrip()
+                            out_lines.append(stripped)
+                            self.output_received.emit(stripped)
                     p.stdout.close()
                 
                 def read_stderr(p=proc, err_lines=stderr_lines):
@@ -151,14 +157,31 @@ class BatchWorker(QThread):
                 self.current_process = None
                 
                 if return_code == 0:
-                    # Prüfe ob die Output-Datei tatsächlich erstellt wurde
-                    if output_path.exists() and output_path.stat().st_size > 0:
+                    # Zuerst prüfen ob Warnungen aufgetreten sind
+                    # (z.B. keine Sprecher erkannt — dann wird keine Datei geschrieben,
+                    #  soll aber als Warning gezählt werden, nicht als Fehler)
+                    warning_msg = classify_process_warning(stderr_lines, stdout_lines)
+                    if warning_msg:
+                        warned += 1
+                        successful += 1
+                        warned_files.append((file_name, warning_msg))
+                        self.file_finished.emit(file_path, True, f"⚠️ {warning_msg}")
+                        self.output_received.emit(f"⚠️ {file_name} ({tr('batch_with_warnings')}): {warning_msg}\n")
+                    elif output_path.exists() and output_path.stat().st_size > 0:
+                        # Datei wurde erstellt und hat Inhalt → Erfolg
                         successful += 1
                         self.file_finished.emit(file_path, True, tr("batch_item_success"))
                         self.output_received.emit(f"✅ {file_name} {tr('batch_item_done')}\n")
                     else:
                         failed += 1
-                        error_reason = f"Output-Datei wurde nicht erstellt: {output_path}"
+                        # Spezifische Fehlermeldung aus stderr/stdout suchen
+                        specific_error = classify_process_error(stderr_lines, stdout_lines)
+                        if specific_error:
+                            error_reason = specific_error
+                        elif output_path.exists():
+                            error_reason = tr('error_empty_transcript')
+                        else:
+                            error_reason = tr('error_output_not_created').format(path=output_path)
                         failed_files.append((file_name, error_reason))
                         self.file_finished.emit(file_path, False, f"❌ {error_reason}")
                         self.output_received.emit(f"❌ {file_name}: {error_reason}\n")
@@ -168,7 +191,14 @@ class BatchWorker(QThread):
                             break
                 else:
                     failed += 1
-                    error_msg = "\n".join(stderr_lines[-5:]) if stderr_lines else tr("batch_unknown_error")
+                    # Spezifische Fehlermeldung aus stderr/stdout suchen
+                    specific_error = classify_process_error(stderr_lines, stdout_lines)
+                    if specific_error:
+                        error_msg = specific_error
+                    elif stderr_lines:
+                        error_msg = "\n".join(stderr_lines[-5:])
+                    else:
+                        error_msg = tr("batch_unknown_error")
                     failed_files.append((file_name, error_msg))
                     self.file_finished.emit(file_path, False, f"❌ {tr('batch_error_prefix')}: {error_msg}")
                     self.output_received.emit(f"❌ {file_name} {tr('batch_item_failed')}: {error_msg}\n")
@@ -187,22 +217,27 @@ class BatchWorker(QThread):
                 
                 if self.batch_options.get('stop_on_error'):
                     break
-            
-            # Kurze Pause zwischen Dateien, damit Ressourcen freigegeben werden
-            if i < total and not self.should_stop:
-                time.sleep(2)
         
+        # Warnungszusammenfassung ausgeben
+        if warned_files:
+            self.output_received.emit(f"\n{'='*60}\n")
+            self.output_received.emit(f"⚠️ {tr('batch_warned_files_header')}:\n")
+            for idx, (fname, reason) in enumerate(warned_files, 1):
+                self.output_received.emit(f"  {idx}. {fname}")
+                first_line = reason.strip().split('\n')[0]
+                self.output_received.emit(f"     {tr('batch_reason_label')}: {first_line}\n")
+
         # Fehlerzusammenfassung ausgeben
         if failed_files:
             self.output_received.emit(f"\n{'='*60}\n")
-            self.output_received.emit("⚠️ Fehlgeschlagene Dateien:\n")
+            self.output_received.emit(f"❌ {tr('batch_failed_files_header')}:\n")
             for idx, (fname, reason) in enumerate(failed_files, 1):
                 self.output_received.emit(f"  {idx}. {fname}")
                 # Nur erste Zeile des Fehlers anzeigen für Übersicht
                 first_line = reason.strip().split('\n')[0]
-                self.output_received.emit(f"     Grund: {first_line}\n")
+                self.output_received.emit(f"     {tr('batch_reason_label')}: {first_line}\n")
         
-        self.batch_finished.emit(successful, failed, failed_files)
+        self.batch_finished.emit(successful, failed, warned, failed_files, warned_files)
     
     def stop(self):
         """Stoppt den Batch-Prozess."""
@@ -341,7 +376,8 @@ class BatchWindow(QDialog):
         """Wird aufgerufen wenn eine Datei fertig ist."""
         pass  # Optionally update file list widget
     
-    def on_batch_finished(self, successful: int, failed: int):
+    def on_batch_finished(self, successful: int, failed: int, warned: int = 0,
+                          failed_files: list = None, warned_files: list = None):
         """Wird aufgerufen wenn Batch fertig ist."""
         self.is_processing = False
         self.btn_start.setEnabled(True)
@@ -350,9 +386,11 @@ class BatchWindow(QDialog):
         
         self.batch_panel.reset_progress()
         
-        self.output_text.append(f"\\n{'='*60}\\n")
-        self.output_text.append(f"=== {tr('batch_done_header')} ===\\n")
-        self.output_text.append(f"✅ {tr('batch_done_success')}: {successful}\\n")
+        self.output_text.append(f"\n{'='*60}\n")
+        self.output_text.append(f"=== {tr('batch_done_header')} ===\n")
+        self.output_text.append(f"✅ {tr('batch_done_success')}: {successful}\n")
+        if warned > 0:
+            self.output_text.append(f"⚠️ {tr('batch_done_warned')}: {warned}\n")
         self.output_text.append(f"❌ {tr('batch_done_failed')}: {failed}\\n")
         
         QMessageBox.information(
