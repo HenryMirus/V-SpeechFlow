@@ -113,8 +113,8 @@
 - [x] Standard-System-Mikrofon automatisch auswählen
 - [x] Wenn HF-Token nicht im Installation-Wizard eingegeben, also nicht in keychain gespeichert ist: Diarization-Einstellungen -> Keychain-Button -> "Kein Token gespeichert. Token hinzufügen?" und -> Token eingeben + Token in Keychein speichern Checkbox
 - [x] Models direkt in models-Ordner laden
-- [ ] Models in Profilen speichern
-- [ ] Model Schnellauswahl "leeren" wenn Profil ausgewählt wird
+- [x] Models in Profilen speichern
+- [x] Model Schnellauswahl "leeren" wenn Profil ausgewählt wird
 - [ ] Volume-Anzeige auf 0 setzen, wenn recording beendet wurde
 - [ ] Transkriptordner wird nach Transkription geöffnet, aber die Datei soll geöffnet werden.
 - [ ] Batch-Verarbeitung Drag&Drop aktivieren

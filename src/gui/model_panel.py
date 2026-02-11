@@ -343,10 +343,17 @@ class ModelPanel(QWidget):
         Args:
             settings: Dict mit model_path
         """
-        if isinstance(settings, dict) and "model_path" in settings:
-            model_path = settings.get("model_path")
-            if model_path:
-                self.set_model_path(model_path)
+        if not isinstance(settings, dict):
+            return
+
+        # Schnellauswahl immer auf Standardwert zurücksetzen
+        self.model_combo.setCurrentIndex(0)
+
+        # Modell-Pfad setzen (auch wenn Datei noch nicht existiert)
+        model_path = settings.get("model_path")
+        if model_path:
+            self.model_path_input.setText(model_path)
+            self.validate_model_path()
     
     # ---- Download-Logik ----
 
