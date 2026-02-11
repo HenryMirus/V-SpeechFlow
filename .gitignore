@@ -34,6 +34,7 @@ output*.txt
 
 # Models
 models/*.bin
+models/*.bin.part
 !models/.gitkeep
 
 # IDE
