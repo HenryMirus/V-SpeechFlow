@@ -445,6 +445,7 @@ class TranslationManager:
             
             # Batch Panel
             "batch_title": "Batch-Processing",
+            "batch_drop_hint": "Dateien oder Ordner hierher ziehen",
             "batch_info": "Verarbeite mehrere Audio-Dateien nacheinander",
             "batch_file_list": "Dateiliste",
             "batch_btn_add_files": "Dateien hinzufügen",
@@ -1071,6 +1072,7 @@ class TranslationManager:
             
             # Batch Panel
             "batch_title": "Batch Processing",
+            "batch_drop_hint": "Drag files or folders here",
             "batch_info": "Process multiple audio files sequentially",
             "batch_file_list": "File List",
             "batch_btn_add_files": "Add Files",

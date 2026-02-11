@@ -420,6 +420,15 @@ class InputPanel(QWidget):
     
     def dragEnterEvent(self, event: QDragEnterEvent):
         """Akzeptiert Drag-and-Drop für Audio-Dateien."""
+        # Prüfen welcher Tab aktiv ist
+        current_tab = self.tabs.currentIndex()
+        
+        # Batch-Tab (Index 2): an BatchPanel delegieren
+        if current_tab == 2:
+            self.batch_panel.dragEnterEvent(event)
+            return
+        
+        # Datei-Tab (Index 1): Einzeldatei-Handling
         if event.mimeData().hasUrls():
             urls = event.mimeData().urls()
             if urls:
@@ -433,18 +442,33 @@ class InputPanel(QWidget):
                     return
         
         # Falls nicht akzeptiert - rotes Highlight
-        self.file_path_display.setStyleSheet(
-            "border: 2px solid #f44336; background-color: #f8f0f0; border-radius: 4px;"
-        )
+        if current_tab == 1:
+            self.file_path_display.setStyleSheet(
+                "border: 2px solid #f44336; background-color: #f8f0f0; border-radius: 4px;"
+            )
         event.ignore()
     
     def dragLeaveEvent(self, event: QDragLeaveEvent):
         """Entfernt visuelles Feedback wenn Drag verlässt."""
+        current_tab = self.tabs.currentIndex()
+        
+        if current_tab == 2:
+            self.batch_panel.dragLeaveEvent(event)
+            return
+        
         self.file_path_display.setStyleSheet("")
         event.accept()
     
     def dropEvent(self, event: QDropEvent):
         """Verarbeitet Drop von Audio-Dateien."""
+        current_tab = self.tabs.currentIndex()
+        
+        # Batch-Tab: an BatchPanel delegieren
+        if current_tab == 2:
+            self.batch_panel.dropEvent(event)
+            return
+        
+        # Datei-Tab: Einzeldatei-Handling
         self.file_path_display.setStyleSheet("")  # Highlighting entfernen
         
         if event.mimeData().hasUrls():

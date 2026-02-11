@@ -21,7 +21,7 @@ from PyQt6.QtWidgets import (
     QCheckBox,
 )
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QFont, QDragEnterEvent, QDropEvent
+from PyQt6.QtGui import QFont, QDragEnterEvent, QDropEvent, QDragLeaveEvent
 from .translations import tr
 from .constants import SUPPORTED_AUDIO_FORMATS
 
@@ -45,6 +45,9 @@ class BatchPanel(QWidget):
         """Initialisiert die UI."""
         layout = QVBoxLayout(self)
         
+        # Drag & Drop auf dem gesamten Panel aktivieren
+        self.setAcceptDrops(True)
+        
         # Titel
         title = QLabel("📦 " + tr("batch_title"))
         title_font = QFont()
@@ -52,6 +55,12 @@ class BatchPanel(QWidget):
         title_font.setBold(True)
         title.setFont(title_font)
         layout.addWidget(title)
+        
+        # Drop-Hinweis
+        self.drop_hint = QLabel("⬇️ " + tr("batch_drop_hint"))
+        self.drop_hint.setStyleSheet("color: gray; font-size: 11px; font-style: italic;")
+        self.drop_hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.drop_hint)
         
         info = QLabel(tr("batch_info"))
         info.setStyleSheet("color: gray; font-size: 11px;")
@@ -61,12 +70,10 @@ class BatchPanel(QWidget):
         file_group = QGroupBox(tr("batch_file_list"))
         file_layout = QVBoxLayout()
         
-        # Liste Widget
+        # Liste Widget – Drag & Drop wird über das Panel gesteuert
         self.file_list_widget = QListWidget()
         self.file_list_widget.setSelectionMode(QListWidget.SelectionMode.ExtendedSelection)
-        self.file_list_widget.setAcceptDrops(True)
-        self.file_list_widget.dragEnterEvent = self.dragEnterEvent
-        self.file_list_widget.dropEvent = self.dropEvent
+        self.file_list_widget.setAcceptDrops(False)
         file_layout.addWidget(self.file_list_widget)
         
         # Buttons für Datei-Management
@@ -137,12 +144,52 @@ class BatchPanel(QWidget):
         self.setLayout(layout)
     
     def dragEnterEvent(self, event: QDragEnterEvent):
-        """Drag Enter Event für Datei-Drops."""
+        """Drag Enter Event für Datei-Drops mit visuellem Feedback."""
         if event.mimeData().hasUrls():
-            event.acceptProposedAction()
+            # Prüfen ob mindestens eine gültige Audio-Datei oder ein Ordner dabei ist
+            has_valid = False
+            for url in event.mimeData().urls():
+                file_path = url.toLocalFile()
+                path = Path(file_path)
+                if path.is_dir():
+                    has_valid = True
+                    break
+                if path.is_file() and path.suffix.lower().lstrip('.') in self.SUPPORTED_FORMATS:
+                    has_valid = True
+                    break
+            
+            if has_valid:
+                # Grünes Highlight – gültige Dateien
+                self.file_list_widget.setStyleSheet(
+                    "QListWidget { border: 2px solid #4CAF50; background-color: #f0f8f0; border-radius: 4px; }"
+                )
+                self.drop_hint.setText("✅ Loslassen zum Hinzufügen")
+                self.drop_hint.setStyleSheet("color: #4CAF50; font-size: 11px; font-weight: bold;")
+                event.acceptProposedAction()
+                return
+        
+        # Rotes Highlight – ungültige Dateien
+        self.file_list_widget.setStyleSheet(
+            "QListWidget { border: 2px solid #f44336; background-color: #f8f0f0; border-radius: 4px; }"
+        )
+        self.drop_hint.setText("❌ Nicht unterstütztes Format")
+        self.drop_hint.setStyleSheet("color: #f44336; font-size: 11px; font-weight: bold;")
+        event.ignore()
+    
+    def dragLeaveEvent(self, event: QDragLeaveEvent):
+        """Entfernt visuelles Feedback wenn Drag verlässt."""
+        self.file_list_widget.setStyleSheet("")
+        self.drop_hint.setText("⬇️ " + tr("batch_drop_hint"))
+        self.drop_hint.setStyleSheet("color: gray; font-size: 11px; font-style: italic;")
+        event.accept()
     
     def dropEvent(self, event: QDropEvent):
         """Drop Event für Dateien."""
+        # Visuelles Feedback zurücksetzen
+        self.file_list_widget.setStyleSheet("")
+        self.drop_hint.setText("⬇️ " + tr("batch_drop_hint"))
+        self.drop_hint.setStyleSheet("color: gray; font-size: 11px; font-style: italic;")
+        
         urls = event.mimeData().urls()
         files = []
         
