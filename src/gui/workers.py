@@ -197,3 +197,71 @@ class RecordingWorker(QThread):
     def stop(self):
         """Stoppt die Aufnahme."""
         self.should_stop = True
+
+
+class ModelDownloadWorker(QThread):
+    """Worker-Thread für den Download von Whisper-Modellen."""
+
+    progress_updated = pyqtSignal(float, float)  # (bytes_downloaded, total_bytes) – float wegen >2GB Dateien
+    download_finished = pyqtSignal(str)              # Pfad zur heruntergeladenen Datei
+    download_error = pyqtSignal(str)                 # Fehlermeldung
+
+    def __init__(self, url: str, dest_path: Path):
+        """
+        Args:
+            url: Download-URL des Modells
+            dest_path: Ziel-Pfad für die Datei
+        """
+        super().__init__()
+        self.url = url
+        self.dest_path = dest_path
+        self.should_stop = False
+
+    def run(self):
+        """Führt den Download aus."""
+        import requests
+
+        try:
+            # Zielverzeichnis erstellen
+            self.dest_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Temporärer Dateiname während des Downloads
+            tmp_path = Path(str(self.dest_path) + '.part')
+
+            response = requests.get(
+                self.url,
+                stream=True,
+                timeout=(15, 300),  # (connect_timeout, read_timeout) – großzügig für große Dateien
+                headers={"User-Agent": "V-SpeechFlow/1.0"},
+            )
+            response.raise_for_status()
+
+            total_size = int(response.headers.get('Content-Length', 0))
+            downloaded = 0
+            chunk_size = 1024 * 1024  # 1 MB Chunks
+
+            with open(tmp_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=chunk_size):
+                    if self.should_stop:
+                        f.close()
+                        tmp_path.unlink(missing_ok=True)
+                        return
+                    if chunk:
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        self.progress_updated.emit(float(downloaded), float(total_size))
+
+            # Download abgeschlossen – umbenennen
+            tmp_path.rename(self.dest_path)
+            self.download_finished.emit(str(self.dest_path))
+
+        except Exception as e:
+            # Aufräumen bei Fehler
+            tmp_path = Path(str(self.dest_path) + '.part')
+            if tmp_path.exists():
+                tmp_path.unlink(missing_ok=True)
+            self.download_error.emit(str(e))
+
+    def stop(self):
+        """Bricht den Download ab."""
+        self.should_stop = True

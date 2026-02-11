@@ -45,6 +45,30 @@ AVAILABLE_MODELS = {
 }
 
 
+def get_models_dir() -> Path:
+    """
+    Gibt den Pfad zum models-Ordner im Projekt zurück.
+    Erstellt den Ordner, falls er nicht existiert.
+    """
+    models_dir = Path(__file__).parent.parent.parent / "models"
+    models_dir.mkdir(parents=True, exist_ok=True)
+    return models_dir
+
+
+def get_model_path_in_models_dir(filename: str) -> Path:
+    """Gibt den vollständigen Pfad zu einem Modell im models-Ordner zurück."""
+    return get_models_dir() / filename
+
+
+def is_model_downloaded(filename: str) -> bool:
+    """Prüft ob ein Modell bereits im models-Ordner vorhanden ist."""
+    model_path = get_model_path_in_models_dir(filename)
+    if not model_path.exists():
+        return False
+    # Mindestens 100MB für ein gültiges Modell
+    return model_path.stat().st_size >= 100 * 1024 * 1024
+
+
 def validate_model_file(model_path: str) -> Dict:
     """
     Validiert eine Modell-Datei (existiert, Größe).

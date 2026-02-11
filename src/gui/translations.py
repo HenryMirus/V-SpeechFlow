@@ -343,6 +343,15 @@ class TranslationManager:
             "model_validation_valid": "✓ Modell gültig",
             "model_validation_invalid": "✗ Modell ungültig",
             "model_validation_checking": "Prüfe Modell...",
+            "model_download_btn": "Herunterladen",
+            "model_download_confirm_title": "Modell herunterladen?",
+            "model_download_confirm_text": "{name} ({size} MB) in den models-Ordner herunterladen?",
+            "model_download_in_progress": "Download läuft...",
+            "model_download_starting": "Download wird gestartet...",
+            "model_download_complete": "Modell erfolgreich heruntergeladen",
+            "model_download_cancelled": "Download abgebrochen",
+            "model_download_error": "Download-Fehler: {error}",
+            "model_download_error_title": "Download fehlgeschlagen",
             
             # Settings Panel
             "settings_title": "Verarbeitungs-Optionen",
@@ -960,6 +969,15 @@ class TranslationManager:
             "model_validation_valid": "✓ Model valid",
             "model_validation_invalid": "✗ Model invalid",
             "model_validation_checking": "Checking model...",
+            "model_download_btn": "Download",
+            "model_download_confirm_title": "Download model?",
+            "model_download_confirm_text": "Download {name} ({size} MB) to the models folder?",
+            "model_download_in_progress": "Downloading...",
+            "model_download_starting": "Starting download...",
+            "model_download_complete": "Model downloaded successfully",
+            "model_download_cancelled": "Download cancelled",
+            "model_download_error": "Download error: {error}",
+            "model_download_error_title": "Download failed",
             
             # Settings Panel
             "settings_title": "Processing Options",

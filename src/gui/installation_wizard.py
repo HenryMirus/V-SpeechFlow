@@ -21,6 +21,7 @@ from PyQt6.QtWidgets import (
     QGroupBox,
     QRadioButton,
     QButtonGroup,
+    QProgressBar,
 )
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 from PyQt6.QtGui import QFont
@@ -28,6 +29,13 @@ from .translations import tr
 from .history import HistoryManager
 from .system_utils import get_recommended_threads
 from .macos_utils import save_hf_token_to_keychain, is_mac
+from .model_utils import (
+    AVAILABLE_MODELS,
+    get_model_info,
+    get_model_path_in_models_dir,
+    is_model_downloaded,
+)
+from .workers import ModelDownloadWorker
 from pathlib import Path
 import platform
 
@@ -162,26 +170,71 @@ class WelcomePage(WizardPage):
 
 
 class ModelPage(WizardPage):
-    """Seite zur Modell-Auswahl."""
+    """Seite zur Modell-Auswahl mit direktem Download."""
     
     def __init__(self, history_manager: HistoryManager = None):
         super().__init__(
             tr("wizard_model_title"),
             tr("wizard_model_text")
         )
+        self._download_worker = None
         
         # Lade bereits gespeichertes Modell aus der History
         saved_model = None
         if history_manager:
             saved_model = history_manager.get_app_setting("default_model")
         
-        # Modell-Pfad Eingabe
+        # Modell-Schnellauswahl
+        select_group = QGroupBox(tr("model_quick_select"))
+        select_layout = QVBoxLayout()
+        
+        self.model_combo = QComboBox()
+        self.model_combo.addItem(tr("model_quick_select") + "...", None)
+        for filename, info in AVAILABLE_MODELS.items():
+            marker = " ✓" if is_model_downloaded(filename) else ""
+            display_text = f"{info['name']} - {filename}{marker}"
+            self.model_combo.addItem(display_text, filename)
+        self.model_combo.currentIndexChanged.connect(self._on_combo_changed)
+        select_layout.addWidget(self.model_combo)
+        
+        # Detail-Label
+        self.detail_label = QLabel()
+        self.detail_label.setWordWrap(True)
+        self.detail_label.setStyleSheet("color: gray; font-size: 11px;")
+        select_layout.addWidget(self.detail_label)
+        
+        select_group.setLayout(select_layout)
+        self.content_layout.addWidget(select_group)
+        
+        # Download-Bereich
+        dl_layout = QHBoxLayout()
+        self.download_btn = QPushButton("⬇️ " + tr("model_download_btn"))
+        self.download_btn.clicked.connect(self._start_download)
+        self.download_btn.setVisible(False)
+        dl_layout.addWidget(self.download_btn)
+        
+        self.cancel_btn = QPushButton(tr("cancel"))
+        self.cancel_btn.clicked.connect(self._cancel_download)
+        self.cancel_btn.setVisible(False)
+        dl_layout.addWidget(self.cancel_btn)
+        self.content_layout.addLayout(dl_layout)
+        
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setVisible(False)
+        self.progress_bar.setTextVisible(True)
+        self.content_layout.addWidget(self.progress_bar)
+        
+        self.status_label = QLabel()
+        self.status_label.setVisible(False)
+        self.status_label.setStyleSheet("font-size: 11px;")
+        self.content_layout.addWidget(self.status_label)
+        
+        # Modell-Pfad Eingabe (manuell)
         model_group = QGroupBox(tr("wizard_model_path"))
         model_layout = QHBoxLayout()
         
         self.model_input = QLineEdit()
         self.model_input.setPlaceholderText(tr("wizard_model_placeholder"))
-        # Setze gespeichertes Modell, falls vorhanden
         if saved_model:
             self.model_input.setText(saved_model)
         model_layout.addWidget(self.model_input)
@@ -193,19 +246,111 @@ class ModelPage(WizardPage):
         model_group.setLayout(model_layout)
         self.content_layout.addWidget(model_group)
         
-        # Download-Info
-        info_label = QLabel(tr("wizard_model_download"))
-        info_label.setWordWrap(True)
-        self.content_layout.addWidget(info_label)
-        
-        # Link
-        link_label = QLabel('<a href="https://huggingface.co/ggerganov/whisper.cpp">https://huggingface.co/ggerganov/whisper.cpp</a>')
-        link_label.setOpenExternalLinks(True)
-        self.content_layout.addWidget(link_label)
-        
         # Empfohlene Modelle
         recommendations = QLabel(tr("wizard_model_recommendations"))
         self.content_layout.addWidget(recommendations)
+    
+    def _on_combo_changed(self, index: int):
+        """Aktualisiert UI wenn Modell in ComboBox gewählt wird."""
+        filename = self.model_combo.currentData()
+        if not filename:
+            self.detail_label.setText("")
+            self.download_btn.setVisible(False)
+            return
+        
+        info = get_model_info(filename)
+        if not info:
+            return
+        
+        model_path = get_model_path_in_models_dir(filename)
+        self.model_input.setText(str(model_path))
+        self.detail_label.setText(
+            f"<b>{info['name']}</b> — {info['size_mb']} MB<br>{info['description']}"
+        )
+        
+        if is_model_downloaded(filename):
+            self.download_btn.setVisible(False)
+            self.status_label.setVisible(True)
+            self.status_label.setText("✅ " + tr("model_download_complete"))
+            self.status_label.setStyleSheet("font-size: 11px; color: green;")
+        else:
+            self.download_btn.setVisible(True)
+            self.download_btn.setEnabled(True)
+            self.download_btn.setText("⬇️ " + tr("model_download_btn"))
+            self.status_label.setVisible(False)
+    
+    def _start_download(self):
+        """Startet den Modell-Download."""
+        filename = self.model_combo.currentData()
+        if not filename:
+            return
+        info = get_model_info(filename)
+        if not info:
+            return
+        
+        dest_path = get_model_path_in_models_dir(filename)
+        
+        self.download_btn.setEnabled(False)
+        self.download_btn.setText(tr("model_download_in_progress"))
+        self.cancel_btn.setVisible(True)
+        self.progress_bar.setVisible(True)
+        self.progress_bar.setValue(0)
+        self.status_label.setVisible(True)
+        self.status_label.setText(tr("model_download_starting"))
+        self.status_label.setStyleSheet("font-size: 11px; color: gray;")
+        
+        self._download_worker = ModelDownloadWorker(info['url'], dest_path)
+        self._download_worker.progress_updated.connect(self._on_progress)
+        self._download_worker.download_finished.connect(self._on_finished)
+        self._download_worker.download_error.connect(self._on_error)
+        self._download_worker.start()
+    
+    def _cancel_download(self):
+        """Bricht den Download ab."""
+        if self._download_worker:
+            self._download_worker.stop()
+            self._download_worker.wait(3000)
+            self._download_worker = None
+        self._reset_dl_ui()
+        self.status_label.setVisible(True)
+        self.status_label.setText(tr("model_download_cancelled"))
+        self.status_label.setStyleSheet("font-size: 11px; color: orange;")
+    
+    def _on_progress(self, downloaded: float, total: float):
+        dl_mb = downloaded / (1024 * 1024)
+        if total > 0:
+            percent = int(downloaded / total * 100)
+            self.progress_bar.setValue(percent)
+            total_mb = total / (1024 * 1024)
+            self.status_label.setText(f"{dl_mb:.1f} / {total_mb:.1f} MB ({percent}%)")
+        else:
+            self.progress_bar.setRange(0, 0)
+            self.status_label.setText(f"{dl_mb:.1f} MB heruntergeladen...")
+    
+    def _on_finished(self, path: str):
+        self._download_worker = None
+        self._reset_dl_ui()
+        self.status_label.setVisible(True)
+        self.status_label.setText("✅ " + tr("model_download_complete"))
+        self.status_label.setStyleSheet("font-size: 11px; color: green;")
+        self.model_input.setText(path)
+    
+    def _on_error(self, error: str):
+        self._download_worker = None
+        self._reset_dl_ui()
+        self.status_label.setVisible(True)
+        self.status_label.setText("❌ " + tr("model_download_error", error=error))
+        self.status_label.setStyleSheet("font-size: 11px; color: red;")
+    
+    def _reset_dl_ui(self):
+        self.download_btn.setEnabled(True)
+        self.download_btn.setText("⬇️ " + tr("model_download_btn"))
+        self.cancel_btn.setVisible(False)
+        self.progress_bar.setVisible(False)
+        self.progress_bar.setValue(0)
+        filename = self.model_combo.currentData()
+        if filename and is_model_downloaded(filename):
+            self.download_btn.setVisible(False)
     
     def browse_model(self):
         """Öffnet Datei-Dialog für Modell-Auswahl."""
@@ -224,7 +369,6 @@ class ModelPage(WizardPage):
     
     def is_valid(self) -> bool:
         """Prüft ob Modell-Pfad optional valid ist."""
-        # Modell ist optional beim Setup
         model_path = self.model_input.text().strip()
         if not model_path:
             return True  # Optional

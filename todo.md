@@ -75,6 +75,7 @@
 - [x] Favoriten-Profile speichern & laden → Profile mit Favoriten-Markierung, Export/Import, Duplizieren
 - [x] Batch-Processing (mehrere Dateien nacheinander) → `batch_panel.py` + `batch_window.py` mit Worker
 - [x] Dunkelmodus / Hell-Modus Toggle → `theme.py` mit ThemeManager + Toggle im Settings-Menu
+- [ ] MacBook Pro Touchpad integrierung
 
 ### **Fortgeschrittene Ausgabe**
 - [ ] Export-Formate: JSON, SRT (Untertitel), VTT, CSV
@@ -111,7 +112,7 @@
 - [x] ERROR im Output bei funktionierender Transkription entfernen/Fixen
 - [x] Standard-System-Mikrofon automatisch auswählen
 - [x] Wenn HF-Token nicht im Installation-Wizard eingegeben, also nicht in keychain gespeichert ist: Diarization-Einstellungen -> Keychain-Button -> "Kein Token gespeichert. Token hinzufügen?" und -> Token eingeben + Token in Keychein speichern Checkbox
-- [ ] Models direkt in models-Ordner laden, wenn möglich
+- [x] Models direkt in models-Ordner laden
 - [ ] Models in Profilen speichern
 - [ ] Model Schnellauswahl "leeren" wenn Profil ausgewählt wird
 - [ ] Volume-Anzeige auf 0 setzen, wenn recording beendet wurde
