@@ -487,8 +487,11 @@ class TranscriptionController:
         self.mw.log_info(f"Batch-Datei fertig: {filepath} - {message}")
         self.mw.reset_diarization_warning()
 
-    def on_batch_finished(self, successful: int, failed: int):
+    def on_batch_finished(self, successful: int, failed: int, failed_files: list = None):
         """Wird aufgerufen wenn Batch fertig ist."""
+        if failed_files is None:
+            failed_files = []
+        
         self.mw.log_info(
             f"Batch abgeschlossen: {successful} erfolgreich, {failed} fehlgeschlagen"
         )
@@ -498,13 +501,29 @@ class TranscriptionController:
         self.mw.append_output(f"✅ Erfolgreich: {successful}\n")
         self.mw.append_output(f"❌ Fehlgeschlagen: {failed}\n")
 
-        QMessageBox.information(
-            self.mw,
-            tr("status_batch_done"),
-            f"Batch-Processing abgeschlossen!\n\n"
-            f"✅ Erfolgreich: {successful}\n"
-            f"❌ Fehlgeschlagen: {failed}"
-        )
+        # Detaillierte Fehlermeldung zusammenstellen
+        msg = f"Batch-Processing abgeschlossen!\n\n" \
+              f"✅ Erfolgreich: {successful}\n" \
+              f"❌ Fehlgeschlagen: {failed}"
+        
+        if failed_files:
+            msg += "\n\n--- Fehlgeschlagene Dateien ---"
+            for fname, reason in failed_files:
+                first_line = reason.strip().split('\n')[0]
+                msg += f"\n• {fname}: {first_line}"
+        
+        if failed > 0:
+            QMessageBox.warning(
+                self.mw,
+                tr("status_batch_done"),
+                msg
+            )
+        else:
+            QMessageBox.information(
+                self.mw,
+                tr("status_batch_done"),
+                msg
+            )
 
         self.cleanup_after_batch()
 

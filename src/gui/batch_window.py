@@ -6,6 +6,7 @@ Separates Fenster für Batch-Verarbeitung mehrerer Audio-Dateien.
 
 import subprocess
 import sys
+import time
 from pathlib import Path
 from PyQt6.QtWidgets import (
     QDialog,
@@ -26,7 +27,7 @@ class BatchWorker(QThread):
     
     progress = pyqtSignal(int, int, str)  # current, total, filename
     file_finished = pyqtSignal(str, bool, str)  # filepath, success, message
-    batch_finished = pyqtSignal(int, int)  # successful, failed
+    batch_finished = pyqtSignal(int, int, list)  # successful, failed, error_details
     output_received = pyqtSignal(str)
     
     def __init__(self, files: list, cli_args_base: list, batch_options: dict, output_dir: str = None):
@@ -49,6 +50,7 @@ class BatchWorker(QThread):
         total = len(self.files)
         successful = 0
         failed = 0
+        failed_files = []  # Liste von (dateiname, fehlergrund)
         
         cli_script = self._resolve_cli_script()
         if not Path(cli_script).exists():
@@ -90,7 +92,7 @@ class BatchWorker(QThread):
             base_dir.mkdir(parents=True, exist_ok=True)
             
             if self.batch_options.get('create_subfolder'):
-                output_dir = base_dir / "transcripts"
+                output_dir = base_dir / "batch-transcripts"
                 output_dir.mkdir(exist_ok=True)
                 output_path = output_dir / f"{input_path.stem}_transcript.txt"
             else:
@@ -149,12 +151,25 @@ class BatchWorker(QThread):
                 self.current_process = None
                 
                 if return_code == 0:
-                    successful += 1
-                    self.file_finished.emit(file_path, True, tr("batch_item_success"))
-                    self.output_received.emit(f"✅ {file_name} {tr('batch_item_done')}\n")
+                    # Prüfe ob die Output-Datei tatsächlich erstellt wurde
+                    if output_path.exists() and output_path.stat().st_size > 0:
+                        successful += 1
+                        self.file_finished.emit(file_path, True, tr("batch_item_success"))
+                        self.output_received.emit(f"✅ {file_name} {tr('batch_item_done')}\n")
+                    else:
+                        failed += 1
+                        error_reason = f"Output-Datei wurde nicht erstellt: {output_path}"
+                        failed_files.append((file_name, error_reason))
+                        self.file_finished.emit(file_path, False, f"❌ {error_reason}")
+                        self.output_received.emit(f"❌ {file_name}: {error_reason}\n")
+                        
+                        if self.batch_options.get('stop_on_error'):
+                            self.output_received.emit(f"\n⚠️ {tr('batch_error_abort')}\n")
+                            break
                 else:
                     failed += 1
                     error_msg = "\n".join(stderr_lines[-5:]) if stderr_lines else tr("batch_unknown_error")
+                    failed_files.append((file_name, error_msg))
                     self.file_finished.emit(file_path, False, f"❌ {tr('batch_error_prefix')}: {error_msg}")
                     self.output_received.emit(f"❌ {file_name} {tr('batch_item_failed')}: {error_msg}\n")
                     
@@ -165,13 +180,29 @@ class BatchWorker(QThread):
             except Exception as e:
                 self.current_process = None
                 failed += 1
-                self.file_finished.emit(file_path, False, f"❌ Exception: {str(e)}")
-                self.output_received.emit(f"❌ {file_name} {tr('batch_item_failed')}: {str(e)}\n")
+                error_reason = str(e)
+                failed_files.append((file_name, error_reason))
+                self.file_finished.emit(file_path, False, f"❌ Exception: {error_reason}")
+                self.output_received.emit(f"❌ {file_name} {tr('batch_item_failed')}: {error_reason}\n")
                 
                 if self.batch_options.get('stop_on_error'):
                     break
+            
+            # Kurze Pause zwischen Dateien, damit Ressourcen freigegeben werden
+            if i < total and not self.should_stop:
+                time.sleep(2)
         
-        self.batch_finished.emit(successful, failed)
+        # Fehlerzusammenfassung ausgeben
+        if failed_files:
+            self.output_received.emit(f"\n{'='*60}\n")
+            self.output_received.emit("⚠️ Fehlgeschlagene Dateien:\n")
+            for idx, (fname, reason) in enumerate(failed_files, 1):
+                self.output_received.emit(f"  {idx}. {fname}")
+                # Nur erste Zeile des Fehlers anzeigen für Übersicht
+                first_line = reason.strip().split('\n')[0]
+                self.output_received.emit(f"     Grund: {first_line}\n")
+        
+        self.batch_finished.emit(successful, failed, failed_files)
     
     def stop(self):
         """Stoppt den Batch-Prozess."""
