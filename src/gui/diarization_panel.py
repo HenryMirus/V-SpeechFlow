@@ -23,7 +23,7 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QFont
 from .translations import tr
 from .collapsible_section import CollapsibleSection
-from .macos_utils import get_hf_token_from_keychain, is_mac
+from .macos_utils import get_hf_token_from_keychain, save_hf_token_to_keychain, is_mac
 from .utils import validate_token_format
 
 
@@ -185,12 +185,13 @@ class DiarizationPanel(QWidget):
         self.token_status.setStyleSheet("color: gray; font-size: 10px;")
         settings_layout.addWidget(self.token_status)
         
-        # Keychain Hint (nur auf macOS)
+        # Keychain speichern Checkbox (nur auf macOS)
         if is_mac():
-            keychain_hint = QLabel(tr("diarization_keychain_hint"))
-            keychain_hint.setStyleSheet("color: black; font-size: 9px; background-color: #f5f5f5; padding: 5px; border-radius: 3px;")
-            keychain_hint.setWordWrap(True)
-            settings_layout.addWidget(keychain_hint)
+            self.save_to_keychain_checkbox = QCheckBox(tr("diarization_keychain_save_checkbox"))
+            self.save_to_keychain_checkbox.setChecked(False)
+            self.save_to_keychain_checkbox.toggled.connect(self.on_save_to_keychain_toggled)
+            self.save_to_keychain_checkbox.setToolTip(tr("diarization_keychain_save_tooltip"))
+            settings_layout.addWidget(self.save_to_keychain_checkbox)
         
         settings_layout.addStretch()
         self.settings_group.setLayout(settings_layout)
@@ -256,9 +257,17 @@ class DiarizationPanel(QWidget):
             self.hf_token_input.setEchoMode(QLineEdit.EchoMode.Password)
     
     def load_token_from_keychain(self):
-        """Lädt HuggingFace Token aus macOS Keychain."""
+        """Lädt HuggingFace Token aus macOS Keychain oder bietet Eingabe-Dialog an."""
+        if not is_mac():
+            QMessageBox.information(
+                self,
+                tr("diarization_keychain_unavailable_title"),
+                tr("diarization_keychain_unavailable_msg")
+            )
+            return
+
         token = get_hf_token_from_keychain()
-        
+
         if token:
             self.hf_token_input.setText(token)
             QMessageBox.information(
@@ -267,18 +276,84 @@ class DiarizationPanel(QWidget):
                 tr("diarization_token_loaded_msg")
             )
         else:
-            if is_mac():
-                QMessageBox.warning(
-                    self,
-                    tr("diarization_keychain_unavailable_title"),
-                    tr("diarization_keychain_hint")
-                )
-            else:
+            self._show_token_input_dialog()
+
+    def _show_token_input_dialog(self):
+        """Zeigt einen Dialog zum Eingeben eines HF-Tokens, der in der Keychain gespeichert wird."""
+        from PyQt6.QtWidgets import QDialog, QDialogButtonBox
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle(tr("diarization_keychain_no_token_title"))
+        dialog.setMinimumWidth(420)
+
+        dlg_layout = QVBoxLayout(dialog)
+
+        info_label = QLabel(tr("diarization_keychain_no_token_msg"))
+        info_label.setWordWrap(True)
+        dlg_layout.addWidget(info_label)
+
+        token_input = QLineEdit()
+        token_input.setPlaceholderText(tr("diarization_token_placeholder"))
+        token_input.setEchoMode(QLineEdit.EchoMode.Password)
+        dlg_layout.addWidget(token_input)
+
+        button_box = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
+        )
+        button_box.accepted.connect(dialog.accept)
+        button_box.rejected.connect(dialog.reject)
+        dlg_layout.addWidget(button_box)
+
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            new_token = token_input.text().strip()
+            if not new_token:
+                return
+
+            self.hf_token_input.setText(new_token)
+
+            success = save_hf_token_to_keychain(new_token)
+            if success:
                 QMessageBox.information(
                     self,
-                    tr("diarization_keychain_unavailable_title"),
-                    tr("diarization_keychain_unavailable_msg")
+                    tr("diarization_token_saved_title"),
+                    tr("diarization_token_saved_msg")
                 )
+            else:
+                QMessageBox.warning(
+                    self,
+                    tr("diarization_keychain_save_error_title"),
+                    tr("diarization_keychain_save_error_msg")
+                )
+
+    def on_save_to_keychain_toggled(self, checked: bool):
+        """Speichert den aktuellen Token in der Keychain wenn die Checkbox aktiviert wird."""
+        if not checked:
+            return
+
+        token = self.hf_token_input.text().strip()
+        if not token:
+            QMessageBox.warning(
+                self,
+                tr("diarization_keychain_save_error_title"),
+                tr("diarization_keychain_no_token_to_save")
+            )
+            self.save_to_keychain_checkbox.setChecked(False)
+            return
+
+        success = save_hf_token_to_keychain(token)
+        if success:
+            QMessageBox.information(
+                self,
+                tr("diarization_token_saved_title"),
+                tr("diarization_token_saved_msg")
+            )
+        else:
+            QMessageBox.warning(
+                self,
+                tr("diarization_keychain_save_error_title"),
+                tr("diarization_keychain_save_error_msg")
+            )
+            self.save_to_keychain_checkbox.setChecked(False)
     
     def emit_settings_changed(self):
         """Emittiert Signal mit aktuellen Diarization-Settings."""

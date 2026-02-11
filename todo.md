@@ -110,5 +110,13 @@
 - [x] Progressbar fixen
 - [x] ERROR im Output bei funktionierender Transkription entfernen/Fixen
 - [x] Standard-System-Mikrofon automatisch auswählen
+- [x] Wenn HF-Token nicht im Installation-Wizard eingegeben, also nicht in keychain gespeichert ist: Diarization-Einstellungen -> Keychain-Button -> "Kein Token gespeichert. Token hinzufügen?" und -> Token eingeben + Token in Keychein speichern Checkbox
+- [ ] Models direkt in models-Ordner laden, wenn möglich
+- [ ] Models in Profilen speichern
+- [ ] Model Schnellauswahl "leeren" wenn Profil ausgewählt wird
+- [ ] Volume-Anzeige auf 0 setzen, wenn recording beendet wurde
+- [ ] Transkriptordner wird nach Transkription geöffnet, aber die Datei soll geöffnet werden.
+- [ ] Batch-Verarbeitung Drag&Drop aktivieren
+- [ ] Batch-Verarbeitung Transkritption funktioniert nicht
 - [x] Bad Smells entfernen, Code schön machen
 - [ ] Exe erstellen, die automatisch alles buildet und die APP startet.
