@@ -118,6 +118,6 @@
 - [x] Volume-Anzeige auf 0 setzen, wenn recording beendet wurde
 - [x] Transkriptordner wird nach Transkription geöffnet, aber die Datei soll geöffnet werden.
 - [x] Batch-Verarbeitung Drag&Drop aktivieren
-- [ ] Batch-Verarbeitung Transkritption funktioniert nicht
+- [x] Batch-Verarbeitung Transkritption funktioniert nicht
 - [x] Bad Smells entfernen, Code schön machen
 - [ ] Exe erstellen, die automatisch alles buildet und die APP startet.

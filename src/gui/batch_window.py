@@ -29,12 +29,20 @@ class BatchWorker(QThread):
     batch_finished = pyqtSignal(int, int)  # successful, failed
     output_received = pyqtSignal(str)
     
-    def __init__(self, files: list, cli_args_base: list, batch_options: dict):
+    def __init__(self, files: list, cli_args_base: list, batch_options: dict, output_dir: str = None):
         super().__init__()
         self.files = files
         self.cli_args_base = cli_args_base
         self.batch_options = batch_options
+        self.output_dir = output_dir  # Ausgabe-Verzeichnis aus dem Output-Panel
         self.should_stop = False
+        self.current_process = None
+    
+    def _resolve_cli_script(self) -> str:
+        """Findet den Pfad zum CLI-Script (gleiche Methode wie CLIWorker)."""
+        project_root = Path(__file__).parent.parent
+        cli_script = project_root / "python" / "stt_cli.py"
+        return str(cli_script)
     
     def run(self):
         """Führt Batch-Processing aus."""
@@ -42,71 +50,123 @@ class BatchWorker(QThread):
         successful = 0
         failed = 0
         
+        cli_script = self._resolve_cli_script()
+        if not Path(cli_script).exists():
+            self.output_received.emit(f"❌ CLI script not found: {cli_script}\n")
+            self.batch_finished.emit(0, total)
+            return
+        
         for i, file_path in enumerate(self.files, 1):
             if self.should_stop:
                 break
             
             file_name = Path(file_path).name
             self.progress.emit(i, total, file_name)
-            self.output_received.emit(f"\\n{'='*60}\\n")
-            self.output_received.emit(tr("batch_processing_item").format(current=i, total=total, name=file_name) + "\\n")
+            self.output_received.emit(f"\n{'='*60}\n")
+            self.output_received.emit(tr("batch_processing_item").format(current=i, total=total, name=file_name) + "\n")
             
-            # CLI-Argumente anpassen für diese Datei
+            # CLI-Argumente für diese Datei zusammenstellen
             cli_args = self.cli_args_base.copy()
             
-            # Input-Datei ersetzen
+            # Input-Datei setzen
             if "--input" in cli_args:
                 input_index = cli_args.index("--input")
                 cli_args[input_index + 1] = file_path
             else:
                 cli_args.extend(["--input", file_path])
             
-            # Output-Datei anpassen
+            # Output-Datei anpassen (pro Datei eigener Output)
+            input_path = Path(file_path)
+            
+            # Basis-Verzeichnis: Output-Panel-Pfad oder Fallback auf Input-Verzeichnis
+            if self.output_dir:
+                base_dir = Path(self.output_dir)
+                # Falls output_dir ein Dateipfad ist, verwende das übergeordnete Verzeichnis
+                if base_dir.suffix:
+                    base_dir = base_dir.parent
+            else:
+                base_dir = input_path.parent
+            
+            base_dir.mkdir(parents=True, exist_ok=True)
+            
+            if self.batch_options.get('create_subfolder'):
+                output_dir = base_dir / "transcripts"
+                output_dir.mkdir(exist_ok=True)
+                output_path = output_dir / f"{input_path.stem}_transcript.txt"
+            else:
+                output_path = base_dir / f"{input_path.stem}_transcript.txt"
+            
             if "--output" in cli_args:
                 output_index = cli_args.index("--output")
-                original_output = cli_args[output_index + 1]
-                
-                # Neuer Output-Pfad basierend auf Input
-                input_path = Path(file_path)
-                if self.batch_options.get('create_subfolder'):
-                    # Erstelle Unterordner für Batch-Outputs
-                    output_dir = input_path.parent / "transcripts"
-                    output_dir.mkdir(exist_ok=True)
-                    output_path = output_dir / f"{input_path.stem}_transcript.txt"
-                else:
-                    output_path = input_path.parent / f"{input_path.stem}_transcript.txt"
-                
                 cli_args[output_index + 1] = str(output_path)
+            else:
+                cli_args.extend(["--output", str(output_path)])
             
-            # CLI ausführen
+            # CLI ausführen — gleiche Methode wie CLIWorker (Popen mit Echtzeit-Output)
             try:
-                result = subprocess.run(
-                    [sys.executable, "-m", "src.python.stt_cli"] + cli_args,
-                    capture_output=True,
+                import threading
+                
+                cmd = [sys.executable, cli_script] + cli_args
+                self.output_received.emit(f"🔧 {' '.join(cmd)}\n")
+                
+                proc = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
                     text=True,
-                    check=False
+                    bufsize=1,
+                    universal_newlines=True
                 )
+                self.current_process = proc
                 
-                self.output_received.emit(result.stdout)
+                # Output in Echtzeit lesen — proc als lokale Variable
+                # damit Closures nicht auf self.current_process referenzieren
+                stderr_lines = []
                 
-                if result.returncode == 0:
+                def read_stdout(p=proc):
+                    for line in iter(p.stdout.readline, ''):
+                        if line:
+                            self.output_received.emit(line.rstrip())
+                    p.stdout.close()
+                
+                def read_stderr(p=proc, err_lines=stderr_lines):
+                    for line in iter(p.stderr.readline, ''):
+                        if line:
+                            stripped = line.rstrip()
+                            err_lines.append(stripped)
+                            self.output_received.emit(stripped)
+                    p.stderr.close()
+                
+                stdout_thread = threading.Thread(target=read_stdout, daemon=True)
+                stderr_thread = threading.Thread(target=read_stderr, daemon=True)
+                stdout_thread.start()
+                stderr_thread.start()
+                
+                return_code = proc.wait()
+                # Warte bis Reader-Threads fertig sind (alle Pipe-Daten gelesen)
+                stdout_thread.join(timeout=30)
+                stderr_thread.join(timeout=30)
+                self.current_process = None
+                
+                if return_code == 0:
                     successful += 1
                     self.file_finished.emit(file_path, True, tr("batch_item_success"))
-                    self.output_received.emit(f"✅ {file_name} {tr('batch_item_done')}\\n")
+                    self.output_received.emit(f"✅ {file_name} {tr('batch_item_done')}\n")
                 else:
                     failed += 1
-                    error_msg = result.stderr if result.stderr else tr("batch_unknown_error")
+                    error_msg = "\n".join(stderr_lines[-5:]) if stderr_lines else tr("batch_unknown_error")
                     self.file_finished.emit(file_path, False, f"❌ {tr('batch_error_prefix')}: {error_msg}")
-                    self.output_received.emit(f"❌ {file_name} {tr('batch_item_failed')}: {error_msg}\\n")
+                    self.output_received.emit(f"❌ {file_name} {tr('batch_item_failed')}: {error_msg}\n")
                     
                     if self.batch_options.get('stop_on_error'):
-                        self.output_received.emit(f"\\n⚠️ {tr('batch_error_abort')}\\n")
+                        self.output_received.emit(f"\n⚠️ {tr('batch_error_abort')}\n")
                         break
             
             except Exception as e:
+                self.current_process = None
                 failed += 1
                 self.file_finished.emit(file_path, False, f"❌ Exception: {str(e)}")
-                self.output_received.emit(f"❌ {file_name} {tr('batch_item_failed')}: {str(e)}\\n")
+                self.output_received.emit(f"❌ {file_name} {tr('batch_item_failed')}: {str(e)}\n")
                 
                 if self.batch_options.get('stop_on_error'):
                     break
@@ -116,6 +176,15 @@ class BatchWorker(QThread):
     def stop(self):
         """Stoppt den Batch-Prozess."""
         self.should_stop = True
+        if self.current_process:
+            try:
+                self.current_process.terminate()
+                self.current_process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                self.current_process.kill()
+                self.current_process.wait()
+            except Exception:
+                pass
 
 
 class BatchWindow(QDialog):

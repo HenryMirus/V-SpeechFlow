@@ -398,10 +398,16 @@ class TranscriptionController:
 
         try:
             cli_args = self.build_cli_arguments()
+            # --input entfernen (wird pro Datei im BatchWorker gesetzt)
             if "--input" in cli_args:
                 input_index = cli_args.index("--input")
                 cli_args.pop(input_index + 1)
                 cli_args.pop(input_index)
+            # --output entfernen (wird pro Datei im BatchWorker gesetzt)
+            if "--output" in cli_args:
+                output_index = cli_args.index("--output")
+                cli_args.pop(output_index + 1)
+                cli_args.pop(output_index)
         except Exception as e:
             QMessageBox.critical(
                 self.mw, tr('main_error'), f"{tr('main_cli_error')}\n{str(e)}"
@@ -410,9 +416,13 @@ class TranscriptionController:
 
         batch_options = self.mw.input_panel.get_batch_options()
 
+        # Output-Verzeichnis aus dem Output-Panel holen
+        output_dir = self.mw.output_panel.get_output_path()
+
         self.mw.output_preview.clear()
         self.mw.append_output("=== Batch-Processing gestartet ===\n")
         self.mw.append_output(f"Dateien: {len(files)}\n")
+        self.mw.append_output(f"Ausgabe-Verzeichnis: {output_dir}\n")
         self.mw.append_output(f"Optionen: {batch_options}\n\n")
 
         self.mw.is_processing = True
@@ -426,7 +436,7 @@ class TranscriptionController:
         self.mw.eta_label.setText(tr("status_batch_running"))
         self.mw.statusBar().showMessage(f"⏳ Batch-Processing: 0/{len(files)}")
 
-        self.mw.batch_worker = BatchWorker(files, cli_args, batch_options)
+        self.mw.batch_worker = BatchWorker(files, cli_args, batch_options, output_dir=output_dir)
         self.mw.batch_worker.progress.connect(self.on_batch_progress)
         self.mw.batch_worker.file_finished.connect(self.on_batch_file_finished)
         self.mw.batch_worker.batch_finished.connect(self.on_batch_finished)
