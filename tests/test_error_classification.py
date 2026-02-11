@@ -12,7 +12,7 @@ import pytest
 # Projektverzeichnis zum Pfad hinzufügen
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from gui.utils import (classify_stderr_error, classify_process_error,
+from src.gui.utils import (classify_stderr_error, classify_process_error,
                       classify_process_warning, is_whisper_debug_line,
                       is_stderr_error_line)
 
