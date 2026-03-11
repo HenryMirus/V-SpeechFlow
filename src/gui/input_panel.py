@@ -240,6 +240,9 @@ class InputPanel(QWidget):
     
     def refresh_devices(self):
         """Aktualisiert die Liste der verfügbaren Mikrofone."""
+        # Aktuell ausgewähltes Gerät merken
+        current_device_id = self.mic_combo.currentData()
+
         try:
             self.device_list = list_audio_devices()
             self.mic_combo.clear()
@@ -261,7 +264,13 @@ class InputPanel(QWidget):
                     display_text = f"{device['name']} ({device['channels']}ch, {device['sample_rate']}Hz)"
                     self.mic_combo.addItem(display_text, device['id'])
                 
-                # Intelligente Geräte-Auswahl mit Prioritäten
+                # Vorher ausgewähltes Gerät wiederherstellen, sonst beste Wahl
+                if current_device_id is not None:
+                    for i in range(self.mic_combo.count()):
+                        if self.mic_combo.itemData(i) == current_device_id:
+                            self.mic_combo.setCurrentIndex(i)
+                            return
+                # Nur beim ersten Laden (kein vorheriges Gerät) best. Gerät wählen
                 self._select_best_device()
         except Exception as e:
             self.mic_combo.clear()

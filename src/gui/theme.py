@@ -4,6 +4,11 @@ Theme Management für V-SpeechFlow GUI
 Stellt Light und Dark Mode Themes bereit.
 """
 
+from pathlib import Path
+
+_ICONS_DIR = Path(__file__).parent / "icons"
+
+
 class ThemeManager:
     """Verwaltet Themes für die GUI.
 
@@ -38,6 +43,7 @@ class ThemeManager:
     
     def get_light_theme(self) -> str:
         """Gibt das Light Theme Stylesheet zurück."""
+        arrow_dark = str(_ICONS_DIR / "arrow_down_dark.svg").replace("\\", "/")
         return """
             QMainWindow, QDialog, QWidget {
                 background-color: #ffffff;
@@ -106,6 +112,16 @@ class ThemeManager:
             
             QComboBox::drop-down {
                 border: none;
+                width: 24px;
+                border-left: 1px solid #c0c0c0;
+                border-top-right-radius: 3px;
+                border-bottom-right-radius: 3px;
+            }
+            
+            QComboBox::down-arrow {
+                image: url(__ARROW_DARK__);
+                width: 10px;
+                height: 6px;
             }
             
             QComboBox QAbstractItemView {
@@ -237,10 +253,11 @@ class ThemeManager:
             QScrollBar::handle:vertical:hover {
                 background: #a0a0a0;
             }
-        """
+        """.replace("__ARROW_DARK__", arrow_dark)
     
     def get_dark_theme(self) -> str:
         """Gibt das Dark Theme Stylesheet zurück."""
+        arrow_light = str(_ICONS_DIR / "arrow_down_light.svg").replace("\\", "/")
         return """
             QMainWindow, QDialog, QWidget {
                 background-color: #2b2b2b;
@@ -310,6 +327,16 @@ class ThemeManager:
             
             QComboBox::drop-down {
                 border: none;
+                width: 24px;
+                border-left: 1px solid #555555;
+                border-top-right-radius: 3px;
+                border-bottom-right-radius: 3px;
+            }
+            
+            QComboBox::down-arrow {
+                image: url(__ARROW_LIGHT__);
+                width: 10px;
+                height: 6px;
             }
             
             QComboBox QAbstractItemView {
@@ -439,4 +466,4 @@ class ThemeManager:
             QLabel {
                 color: #e0e0e0;
             }
-        """
+        """.replace("__ARROW_LIGHT__", arrow_light)
